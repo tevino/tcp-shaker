@@ -20,6 +20,10 @@ func ExampleShaker() {
 	case nil:
 		fmt.Println("Connect to Google succeded")
 	default:
-		fmt.Println("Connect to Google failed:", err)
+		if e, ok := err.(*ErrConnect); ok {
+			fmt.Println("Connect to Google failed:", e)
+		} else {
+			fmt.Println("Error occurred while connecting:", err)
+		}
 	}
 }

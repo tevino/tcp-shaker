@@ -31,7 +31,6 @@
 package tcp
 
 import (
-	"fmt"
 	"os"
 	"runtime"
 	"sync"
@@ -97,11 +96,11 @@ func (s *Shaker) Test(addr string, timeout time.Duration) error {
 	// check for connect error
 	for {
 		succeed, err := s.wait(fd, timeoutMS)
-		if err != nil {
-			return fmt.Errorf("connect error: %s", err)
-		}
 		if reached(deadline) {
 			return ErrTimeout
+		}
+		if err != nil {
+			return err
 		}
 		if succeed {
 			return nil
@@ -170,7 +169,7 @@ func (s *Shaker) wait(fd int, timeoutMS int) (bool, error) {
 				return false, os.NewSyscallError("getsockopt", err)
 			}
 			if errCode != 0 {
-				return false, fmt.Errorf("getsockopt[%d]", errCode)
+				return false, newErrConnect(errCode)
 			}
 			return true, nil
 		}
