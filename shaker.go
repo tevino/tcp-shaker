@@ -109,6 +109,21 @@ func (s *Shaker) Test(addr string, timeout time.Duration) error {
 	}
 }
 
+// Ready returns a bool indicates whether the Shaker is ready for use
+func (s *Shaker) Ready() bool {
+	s.RLock()
+	defer s.RUnlock()
+	return s.epollFd > 0
+}
+
+// EpollFd returns the inner fd of epoll instance
+// Note: Use this only when you really know what you are doing
+func (s *Shaker) EpollFd() int {
+	s.RLock()
+	defer s.RUnlock()
+	return s.epollFd
+}
+
 // Close closes the inner epoll fd
 func (s *Shaker) Close() error {
 	s.Lock()
