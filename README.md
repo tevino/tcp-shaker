@@ -30,7 +30,7 @@ The Server could be considered alive after it sends back SYN-ACK.
 
 The second one is essential, because it bothers server less.
 
-Usually this means the server will not notice the health checking traffic at all, **thus the act of health chekcing will not be
+Usually this means the server will not notice the health checking traffic at all, **thus the act of health checking will not be
 considered as some misbehaviour of client.**
 
 ## Requirements:

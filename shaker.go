@@ -24,7 +24,7 @@
 //
 // The second one is essential, because it bothers server less.
 // Usually this means the server will not notice the health checking
-// traffic at all, thus the act of health chekcing will not be
+// traffic at all, thus the act of health checking will not be
 // considered as some misbehaviour of client.
 //
 // Shaker's methods may be called by multiple goroutines simultaneously.
