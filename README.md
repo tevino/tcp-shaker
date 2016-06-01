@@ -36,6 +36,31 @@ considered as some misbehaviour of client.**
 ## Requirements:
 - Linux 2.4 or newer
 
+## Usage
+```go
+	import "github.com/tevino/tcp-shaker"
+
+	s := tcp.Shaker{}
+	if err := s.Init(); err != nil {
+		log.Fatal("Shaker init failed:", err)
+	}
+
+	timeout := time.Second * 1
+	err := s.Test("google.com:80", timeout)
+	switch err {
+	case tcp.ErrTimeout:
+		fmt.Println("Connect to Google timeout")
+	case nil:
+		fmt.Println("Connect to Google succeded")
+	default:
+		if e, ok := err.(*tcp.ErrConnect); ok {
+			fmt.Println("Connect to Google failed:", e)
+		} else {
+			fmt.Println("Error occurred while connecting:", err)
+		}
+	}
+```
+
 ## TODO:
 
 - [ ] IPv6 support (Test environment needed, PRs are welcomed)
