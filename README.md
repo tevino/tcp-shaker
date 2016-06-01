@@ -3,14 +3,14 @@
 
 Performing TCP handshake without ACK, useful for health checking.
 
-HAProxy do this exactly the same, which is:
+HAProxy does this exactly the same, which is:
 
 - SYN
 - SYN-ACK
 - RST
 
 ## Why do I have to do this?
-Usually when you establish a TCP connection(e.g. net.Dial), these are the first three packets (TCP three-way handshake):
+Usually when you establish a TCP connection(e.g. `net.Dial`), these are the first three packets (TCP three-way handshake):
 
 - Client -> Server: SYN
 - Server -> Client: SYN-ACK

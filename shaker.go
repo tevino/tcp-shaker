@@ -1,5 +1,5 @@
-// Package tcp is used to perform TCP handshake without ACK.
-// Useful for health checking, HAProxy do this exactly the same.
+// Package tcp is used to perform TCP handshake without ACK,
+// useful for health checking, HAProxy does this exactly the same.
 // Which is SYN, SYN-ACK, RST.
 //
 // Why do I have to do this?
