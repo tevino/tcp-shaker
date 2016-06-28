@@ -1,4 +1,5 @@
 # TCP Shaker :heartbeat:
+[![Go Report Card](https://goreportcard.com/badge/github.com/tevino/tcp-shaker)](https://goreportcard.com/report/github.com/tevino/tcp-shaker)
 [![GoDoc](https://godoc.org/github.com/tevino/tcp-shaker?status.svg)](https://godoc.org/github.com/tevino/tcp-shaker)
 
 Performing TCP handshake without ACK, useful for health checking.
