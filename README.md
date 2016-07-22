@@ -41,18 +41,18 @@ considered as some misbehaviour of client.**
 ```go
 	import "github.com/tevino/tcp-shaker"
 
-	s := tcp.Shaker{}
-	if err := s.Init(); err != nil {
+	var s tcp.Shaker
+	if err := s.InitShaker(); err != nil {
 		log.Fatal("Shaker init failed:", err)
 	}
 
 	timeout := time.Second * 1
-	err := s.Test("google.com:80", timeout)
+	err := s.TestAddr("google.com:80", timeout)
 	switch err {
 	case tcp.ErrTimeout:
-		fmt.Println("Connect to Google timeout")
+		fmt.Println("Connect to Google timed out")
 	case nil:
-		fmt.Println("Connect to Google succeded")
+		fmt.Println("Connect to Google succeeded")
 	default:
 		if e, ok := err.(*tcp.ErrConnect); ok {
 			fmt.Println("Connect to Google failed:", e)
@@ -64,4 +64,4 @@ considered as some misbehaviour of client.**
 
 ## TODO:
 
-- [ ] IPv6 support (Test environment needed, PRs are welcomed)
+- [ ] IPv6 support (Test environment needed, PRs are welcome)

@@ -46,15 +46,16 @@ type Shaker struct {
 	epollFd int
 }
 
-// Init creates inner epoll instance, call this before anything else
-func (s *Shaker) Init() error {
+// InitShaker creates inner epoll instance, call this before anything else
+func (s *Shaker) InitShaker() error {
 	var err error
 	s.Lock()
 	defer s.Unlock()
+	// Check if we already initialized
 	if s.epollFd > 0 {
 		return nil
 	}
-
+	// Create epoll instance
 	s.epollFd, err = syscall.EpollCreate1(0)
 	if err != nil {
 		return os.NewSyscallError("epoll_create1", err)
@@ -62,40 +63,42 @@ func (s *Shaker) Init() error {
 	return nil
 }
 
-// Test performs a TCP check with given TCP address and timeout
+// TestAddr performs a TCP check with given TCP address and timeout
 // A successful check will result in nil error
 // ErrTimeout is returned if timeout
 // Note: timeout includes domain resolving
-func (s *Shaker) Test(addr string, timeout time.Duration) error {
+func (s *Shaker) TestAddr(addr string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-
+	// Parse address
 	rAddr, err := parseSockAddr(addr)
 	if err != nil {
 		return err
 	}
-
+	// Create socket
 	fd, err := createSocket()
 	if err != nil {
 		return err
 	}
 	defer syscall.Close(fd)
-
+	// Set necessary options
 	if err = setSockopts(fd); err != nil {
 		return err
 	}
-
-	if err = s.connect(fd, rAddr, deadline); err != nil {
+	// Connect to the address
+	if err = s.doConnect(fd, rAddr); err != nil {
 		return err
 	}
+	// Check if the deadline was hit
 	if reached(deadline) {
 		return ErrTimeout
 	}
-
-	s.addEpoll(fd)
+	// Register to epoll for later error checking
+	s.registerFd(fd)
 	timeoutMS := int(timeout.Nanoseconds() / 1000000)
-	// check for connect error
+	// Check for connect error
 	for {
-		succeed, err := s.wait(fd, timeoutMS)
+		succeed, err := s.waitForConnected(fd, timeoutMS)
+		// Check if the deadline was hit
 		if reached(deadline) {
 			return ErrTimeout
 		}
@@ -124,6 +127,7 @@ func (s *Shaker) EpollFd() int {
 }
 
 // Close closes the inner epoll fd
+// InitShaker needs to be called before reuse of the closed shaker
 func (s *Shaker) Close() error {
 	s.Lock()
 	defer s.Unlock()
@@ -135,7 +139,8 @@ func (s *Shaker) Close() error {
 	return nil
 }
 
-func (s *Shaker) addEpoll(fd int) error {
+// registerFd registers given fd to epoll with EPOLLOUT
+func (s *Shaker) registerFd(fd int) error {
 	var event syscall.EpollEvent
 	event.Events = syscall.EPOLLOUT
 	event.Fd = int32(fd)
@@ -147,9 +152,9 @@ func (s *Shaker) addEpoll(fd int) error {
 	return nil
 }
 
-// wait waits for epoll event of given fd
-// The boolean returned indicates whether the connect is successful
-func (s *Shaker) wait(fd int, timeoutMS int) (bool, error) {
+// waitForConnected waits for epoll event of given fd with given timeout
+// The boolean returned indicates whether the previous connect is successful
+func (s *Shaker) waitForConnected(fd int, timeoutMS int) (bool, error) {
 	var events [maxEpollEvents]syscall.EpollEvent
 	s.RLock()
 	epollFd := s.epollFd
@@ -177,7 +182,8 @@ func (s *Shaker) wait(fd int, timeoutMS int) (bool, error) {
 	return false, nil
 }
 
-func (s *Shaker) connect(fd int, addr syscall.Sockaddr, deadline time.Time) error {
+// doConnect calls the connect syscall with some error handled
+func (s *Shaker) doConnect(fd int, addr syscall.Sockaddr) error {
 	switch err := syscall.Connect(fd, addr); err {
 	case syscall.EINPROGRESS, syscall.EALREADY, syscall.EINTR:
 	case nil, syscall.EISCONN:
@@ -198,6 +204,7 @@ func (s *Shaker) connect(fd int, addr syscall.Sockaddr, deadline time.Time) erro
 	return nil
 }
 
+// reached tests if the given deadline was hit
 func reached(deadline time.Time) bool {
 	return !deadline.IsZero() && deadline.Before(time.Now())
 }

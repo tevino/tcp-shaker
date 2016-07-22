@@ -23,6 +23,7 @@ type ErrConnect struct {
 	syscall.Errno
 }
 
+// newErrConnect returns a ErrConnect with given error code
 func newErrConnect(errCode int) *ErrConnect {
 	return &ErrConnect{syscall.Errno(errCode)}
 }
