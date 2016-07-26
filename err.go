@@ -8,7 +8,7 @@ import (
 // ErrTimeout indicates I/O timeout
 var ErrTimeout = &timeoutError{}
 
-// ErrNotInitialized occurs while the Shaker is not initialized
+// ErrNotInitialized occurs while the Checker is not initialized
 var ErrNotInitialized = errors.New("not initialized")
 
 type timeoutError struct{}

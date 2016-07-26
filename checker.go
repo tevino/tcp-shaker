@@ -27,7 +27,7 @@
 // traffic at all, thus the act of health checking will not be
 // considered as some misbehaviour of client.
 //
-// Shaker's methods may be called by multiple goroutines simultaneously.
+// Checker's methods may be called by multiple goroutines simultaneously.
 package tcp
 
 import (
@@ -40,14 +40,20 @@ import (
 
 const maxEpollEvents = 32
 
-// Shaker contains an epoll instance for TCP handshake checking
-type Shaker struct {
+// Checker contains an epoll instance for TCP handshake checking
+type Checker struct {
 	sync.RWMutex
-	epollFd int
+	epollFd    int
+	zeroLinger bool
 }
 
-// InitShaker creates inner epoll instance, call this before anything else
-func (s *Shaker) InitShaker() error {
+// NewChecker creates a Checker with linger set to zero or not
+func NewChecker(zeroLinger bool) *Checker {
+	return &Checker{zeroLinger: zeroLinger}
+}
+
+// InitChecker creates inner epoll instance, call this before anything else
+func (s *Checker) InitChecker() error {
 	var err error
 	s.Lock()
 	defer s.Unlock()
@@ -63,56 +69,81 @@ func (s *Shaker) InitShaker() error {
 	return nil
 }
 
-// TestAddr performs a TCP check with given TCP address and timeout
+// createSocket creats a socket with necessary options set
+func (s *Checker) createSocket(zeroLinger ...bool) (fd int, err error) {
+	// Create socket
+	fd, err = createSocket()
+	// Set necessary options
+	if err == nil {
+		err = setSockOpts(fd)
+	}
+	// Set linger if zeroLinger or s.zeroLinger is on
+	if err == nil {
+		if (len(zeroLinger) > 0 && zeroLinger[0]) || s.zeroLinger {
+			err = setZeroLinger(fd)
+		}
+	}
+	return
+}
+
+// CheckAddr performs a TCP check with given TCP address and timeout
 // A successful check will result in nil error
 // ErrTimeout is returned if timeout
+// zeroLinger is an optional parameter indicating if linger should be set to zero
+// for this particular connection
 // Note: timeout includes domain resolving
-func (s *Shaker) TestAddr(addr string, timeout time.Duration) error {
+func (s *Checker) CheckAddr(addr string, timeout time.Duration, zeroLinger ...bool) (err error) {
+	// Set deadline
 	deadline := time.Now().Add(timeout)
 	// Parse address
-	rAddr, err := parseSockAddr(addr)
-	if err != nil {
+	var rAddr syscall.Sockaddr
+	if rAddr, err = parseSockAddr(addr); err != nil {
 		return err
 	}
-	// Create socket
-	fd, err := createSocket()
-	if err != nil {
-		return err
+	// Create socket with options set
+	var fd int
+	if fd, err = s.createSocket(zeroLinger...); err != nil {
+		return
 	}
-	defer syscall.Close(fd)
-	// Set necessary options
-	if err = setSockopts(fd); err != nil {
-		return err
-	}
+	defer func() {
+		// Socket should be closed anyway
+		cErr := syscall.Close(fd)
+		// Error from close should be returned if no other error happened
+		if err == nil {
+			err = cErr
+		}
+	}()
 	// Connect to the address
 	if err = s.doConnect(fd, rAddr); err != nil {
-		return err
+		return
 	}
 	// Check if the deadline was hit
 	if reached(deadline) {
-		return ErrTimeout
+		err = ErrTimeout
+		return
 	}
 	// Register to epoll for later error checking
-	s.registerFd(fd)
-	timeoutMS := int(timeout.Nanoseconds() / 1000000)
+	if err = s.registerFd(fd); err != nil {
+		return
+	}
 	// Check for connect error
+	var succeed bool
+	var timeoutMS = int(timeout.Nanoseconds() / 1000000)
 	for {
-		succeed, err := s.waitForConnected(fd, timeoutMS)
+		succeed, err = s.waitForConnected(fd, timeoutMS)
 		// Check if the deadline was hit
 		if reached(deadline) {
 			return ErrTimeout
 		}
-		if err != nil {
-			return err
-		}
-		if succeed {
-			return nil
+		if succeed || err != nil {
+			break
 		}
 	}
+	return
 }
 
-// Ready returns a bool indicates whether the Shaker is ready for use
-func (s *Shaker) Ready() bool {
+// Ready returns a bool indicates whether the Checker is ready for use
+func (s *Checker) Ready() bool {
 	s.RLock()
 	defer s.RUnlock()
 	return s.epollFd > 0
@@ -120,15 +151,15 @@ func (s *Shaker) Ready() bool {
 
 // EpollFd returns the inner fd of epoll instance
 // Note: Use this only when you really know what you are doing
-func (s *Shaker) EpollFd() int {
+func (s *Checker) EpollFd() int {
 	s.RLock()
 	defer s.RUnlock()
 	return s.epollFd
 }
 
 // Close closes the inner epoll fd
-// InitShaker needs to be called before reuse of the closed shaker
-func (s *Shaker) Close() error {
+// InitChecker needs to be called before reuse of the closed Checker
+func (s *Checker) Close() error {
 	s.Lock()
 	defer s.Unlock()
 	if s.epollFd > 0 {
@@ -140,7 +171,7 @@ func (s *Shaker) Close() error {
 }
 
 // registerFd registers given fd to epoll with EPOLLOUT
-func (s *Shaker) registerFd(fd int) error {
+func (s *Checker) registerFd(fd int) error {
 	var event syscall.EpollEvent
 	event.Events = syscall.EPOLLOUT
 	event.Fd = int32(fd)
@@ -154,7 +185,7 @@ func (s *Shaker) registerFd(fd int) error {
 
 // waitForConnected waits for epoll event of given fd with given timeout
 // The boolean returned indicates whether the previous connect is successful
-func (s *Shaker) waitForConnected(fd int, timeoutMS int) (bool, error) {
+func (s *Checker) waitForConnected(fd int, timeoutMS int) (bool, error) {
 	var events [maxEpollEvents]syscall.EpollEvent
 	s.RLock()
 	epollFd := s.epollFd
@@ -183,7 +214,7 @@ func (s *Shaker) waitForConnected(fd int, timeoutMS int) (bool, error) {
 }
 
 // doConnect calls the connect syscall with some error handled
-func (s *Shaker) doConnect(fd int, addr syscall.Sockaddr) error {
+func (s *Checker) doConnect(fd int, addr syscall.Sockaddr) error {
 	switch err := syscall.Connect(fd, addr); err {
 	case syscall.EINPROGRESS, syscall.EALREADY, syscall.EINTR:
 	case nil, syscall.EISCONN:

@@ -18,14 +18,14 @@ func assert(t *testing.T, result bool) {
 	}
 }
 
-func ExampleShaker() {
-	var s Shaker
-	if err := s.InitShaker(); err != nil {
-		log.Fatal("Shaker init failed:", err)
+func ExampleChecker() {
+	s := NewChecker(true)
+	if err := s.InitChecker(); err != nil {
+		log.Fatal("Checker init failed:", err)
 	}
 
 	timeout := time.Second * 1
-	err := s.TestAddr("google.com:80", timeout)
+	err := s.CheckAddr("google.com:80", timeout)
 	switch err {
 	case ErrTimeout:
 		fmt.Println("Connect to Google timed out")
@@ -40,56 +40,58 @@ func ExampleShaker() {
 	}
 }
 
-func TestTestAddr(t *testing.T) {
+func TestCheckAddr(t *testing.T) {
 	var err error
-	// Create shaker
-	s := Shaker{}
-	if err := s.InitShaker(); err != nil {
-		t.Fatal("Shaker init failed:", err)
+	// Create checker
+	s := NewChecker(true)
+	if err := s.InitChecker(); err != nil {
+		t.Fatal("Checker init failed:", err)
 	}
 	timeout := time.Second * 2
-	// Test dead server
-	err = s.TestAddr("127.0.0.1:1", timeout)
+	// Check dead server
+	err = s.CheckAddr("127.0.0.1:1", timeout)
 	_, ok := err.(*ErrConnect)
 	assert(t, ok)
 	// Launch a server for test
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	// Test alive server
-	err = s.TestAddr(ts.Listener.Addr().String(), timeout)
+	// Check alive server
+	err = s.CheckAddr(ts.Listener.Addr().String(), timeout)
 	assert(t, err == nil)
 	ts.Close()
-	// Test non-routable address, thus timeout
-	err = s.TestAddr("10.0.0.0:1", timeout)
+	// Check non-routable address, thus timeout
+	err = s.CheckAddr("10.0.0.0:1", timeout)
 	assert(t, err == ErrTimeout)
 }
 
 func TestClose(t *testing.T) {
 	var err error
-	// Create shaker
-	s := Shaker{}
+	// Create checker
+	s := NewChecker(true)
 	assert(t, !s.Ready())
-	if err := s.InitShaker(); err != nil {
-		t.Fatal("Shaker init failed:", err)
+	if err := s.InitChecker(); err != nil {
+		t.Fatal("Checker init failed:", err)
 	}
 	assert(t, s.Ready())
-	// Close the shaker
-	s.Close()
+	// Close the checker
+	err = s.Close()
+	assert(t, err == nil)
 	assert(t, !s.Ready())
-	// Init the shaker again
-	s.InitShaker()
+	// Init the checker again
+	err = s.InitChecker()
+	assert(t, err == nil)
 	assert(t, s.Ready())
 	timeout := time.Second * 2
-	// Test dead server
-	err = s.TestAddr("127.0.0.1:1", timeout)
+	// Check dead server
+	err = s.CheckAddr("127.0.0.1:1", timeout)
 	_, ok := err.(*ErrConnect)
 	assert(t, ok)
 	// Launch a server for test
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	// Test alive server
-	err = s.TestAddr(ts.Listener.Addr().String(), timeout)
+	// Check alive server
+	err = s.CheckAddr(ts.Listener.Addr().String(), timeout)
 	assert(t, err == nil)
 	ts.Close()
-	// Test non-routable address, thus timeout
-	err = s.TestAddr("10.0.0.0:1", timeout)
+	// Check non-routable address, thus timeout
+	err = s.CheckAddr("10.0.0.0:1", timeout)
 	assert(t, err == ErrTimeout)
 }

@@ -27,13 +27,14 @@ func main() {
 	// Parse flag
 	addr, timeout := parseFlag()
 	log.Printf("Checking %s with timeout %s", addr, timeout)
-	// Init shaker
-	s := tcp.Shaker{}
-	if err := s.Init(); err != nil {
+	// Create checker
+	s := tcp.NewChecker(true)
+	// Init checker
+	if err := s.InitChecker(); err != nil {
 		log.Fatal("Initializing failed:", err)
 	}
-	// Test addr
-	err := s.Test(addr, timeout)
+	// Check addr
+	err := s.CheckAddr(addr, timeout)
 	// Print error
 	switch err {
 	case tcp.ErrTimeout:

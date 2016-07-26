@@ -1,4 +1,4 @@
-# TCP Shaker :heartbeat:
+# TCP Checker :heartbeat:
 [![Go Report Card](https://goreportcard.com/badge/github.com/tevino/tcp-shaker)](https://goreportcard.com/report/github.com/tevino/tcp-shaker)
 [![GoDoc](https://godoc.org/github.com/tevino/tcp-shaker?status.svg)](https://godoc.org/github.com/tevino/tcp-shaker)
 
@@ -41,13 +41,13 @@ considered as some misbehaviour of client.**
 ```go
 	import "github.com/tevino/tcp-shaker"
 
-	var s tcp.Shaker
-	if err := s.InitShaker(); err != nil {
-		log.Fatal("Shaker init failed:", err)
+	c := tcp.NewChecker(true)
+	if err := c.InitChecker(); err != nil {
+		log.Fatal("Checker init failed:", err)
 	}
 
 	timeout := time.Second * 1
-	err := s.TestAddr("google.com:80", timeout)
+	err := c.CheckAddr("google.com:80", timeout)
 	switch err {
 	case tcp.ErrTimeout:
 		fmt.Println("Connect to Google timed out")

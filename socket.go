@@ -25,14 +25,18 @@ func createSocket() (int, error) {
 	return fd, err
 }
 
-// setSockopts sets SOCK_NONBLOCK, SO_Linger and TCP_QUICKACK for given fd
-func setSockopts(fd int) error {
+// setSockOpts sets SOCK_NONBLOCK and TCP_QUICKACK for given fd
+func setSockOpts(fd int) error {
 	err := syscall.SetNonblock(fd, true)
 	if err != nil {
 		return err
 	}
-
-	linger := syscall.Linger{Onoff: 1, Linger: 0}
-	syscall.SetsockoptLinger(fd, syscall.SOL_SOCKET, syscall.SO_LINGER, &linger)
 	return syscall.SetsockoptInt(fd, syscall.SOL_TCP, syscall.TCP_QUICKACK, 0)
+}
+
+var zeroLinger = syscall.Linger{Onoff: 1, Linger: 0}
+
+// setLinger sets SO_Linger with 0 timeout to given fd
+func setZeroLinger(fd int) error {
+	return syscall.SetsockoptLinger(fd, syscall.SOL_SOCKET, syscall.SO_LINGER, &zeroLinger)
 }
