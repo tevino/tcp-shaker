@@ -38,35 +38,18 @@ import (
 	"time"
 )
 
-const maxEpollEvents = 32
+const maxPoolEvents = 32
 
-// Checker contains an epoll instance for TCP handshake checking
+// Checker contains an epoll or kqueue instance for TCP handshake checking
 type Checker struct {
 	sync.RWMutex
-	epollFd    int
+	poolFd     int // epoll or kqueue instance
 	zeroLinger bool
 }
 
 // NewChecker creates a Checker with linger set to zero or not
 func NewChecker(zeroLinger bool) *Checker {
 	return &Checker{zeroLinger: zeroLinger}
-}
-
-// InitChecker creates inner epoll instance, call this before anything else
-func (s *Checker) InitChecker() error {
-	var err error
-	s.Lock()
-	defer s.Unlock()
-	// Check if we already initialized
-	if s.epollFd > 0 {
-		return nil
-	}
-	// Create epoll instance
-	s.epollFd, err = syscall.EpollCreate1(0)
-	if err != nil {
-		return os.NewSyscallError("epoll_create1", err)
-	}
-	return nil
 }
 
 // createSocket creats a socket with necessary options set
@@ -122,7 +105,7 @@ func (s *Checker) CheckAddr(addr string, timeout time.Duration, zeroLinger ...bo
 		err = ErrTimeout
 		return
 	}
-	// Register to epoll for later error checking
+	// Register to epoll or kqueue for later error checking
 	if err = s.registerFd(fd); err != nil {
 		return
 	}
@@ -146,71 +129,28 @@ func (s *Checker) CheckAddr(addr string, timeout time.Duration, zeroLinger ...bo
 func (s *Checker) Ready() bool {
 	s.RLock()
 	defer s.RUnlock()
-	return s.epollFd > 0
+	return s.poolFd > 0
 }
 
-// EpollFd returns the inner fd of epoll instance
+// PoolFd returns the inner fd of epoll or kqueue instance
 // Note: Use this only when you really know what you are doing
-func (s *Checker) EpollFd() int {
+func (s *Checker) PoolFd() int {
 	s.RLock()
 	defer s.RUnlock()
-	return s.epollFd
+	return s.poolFd
 }
 
-// Close closes the inner epoll fd
+// Close closes the inner epoll or kqueue fd
 // InitChecker needs to be called before reuse of the closed Checker
 func (s *Checker) Close() error {
 	s.Lock()
 	defer s.Unlock()
-	if s.epollFd > 0 {
-		err := syscall.Close(s.epollFd)
-		s.epollFd = 0
+	if s.poolFd > 0 {
+		err := syscall.Close(s.poolFd)
+		s.poolFd = 0
 		return err
 	}
 	return nil
-}
-
-// registerFd registers given fd to epoll with EPOLLOUT
-func (s *Checker) registerFd(fd int) error {
-	var event syscall.EpollEvent
-	event.Events = syscall.EPOLLOUT
-	event.Fd = int32(fd)
-	s.RLock()
-	defer s.RUnlock()
-	if err := syscall.EpollCtl(s.epollFd, syscall.EPOLL_CTL_ADD, fd, &event); err != nil {
-		return os.NewSyscallError("epoll_ctl", err)
-	}
-	return nil
-}
-
-// waitForConnected waits for epoll event of given fd with given timeout
-// The boolean returned indicates whether the previous connect is successful
-func (s *Checker) waitForConnected(fd int, timeoutMS int) (bool, error) {
-	var events [maxEpollEvents]syscall.EpollEvent
-	s.RLock()
-	epollFd := s.epollFd
-	if epollFd <= 0 {
-		return false, ErrNotInitialized
-	}
-	s.RUnlock()
-	nevents, err := syscall.EpollWait(epollFd, events[:], timeoutMS)
-	if err != nil {
-		return false, os.NewSyscallError("epoll_wait", err)
-	}
-
-	for ev := 0; ev < nevents; ev++ {
-		if int(events[ev].Fd) == fd {
-			errCode, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_ERROR)
-			if err != nil {
-				return false, os.NewSyscallError("getsockopt", err)
-			}
-			if errCode != 0 {
-				return false, newErrConnect(errCode)
-			}
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 // doConnect calls the connect syscall with some error handled
