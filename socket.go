@@ -25,15 +25,6 @@ func createSocket() (int, error) {
 	return fd, err
 }
 
-// setSockOpts sets SOCK_NONBLOCK and TCP_QUICKACK for given fd
-func setSockOpts(fd int) error {
-	err := syscall.SetNonblock(fd, true)
-	if err != nil {
-		return err
-	}
-	return syscall.SetsockoptInt(fd, syscall.SOL_TCP, syscall.TCP_QUICKACK, 0)
-}
-
 var zeroLinger = syscall.Linger{Onoff: 1, Linger: 0}
 
 // setLinger sets SO_Linger with 0 timeout to given fd
