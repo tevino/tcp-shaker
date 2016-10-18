@@ -20,7 +20,7 @@ func (e *timeoutError) Temporary() bool { return true }
 // ErrConnect is an error occurs while connecting to the host
 // To get the detail of underlying error, lookup ErrorCode() in 'man 2 connect'
 type ErrConnect struct {
-	syscall.Errno
+	error
 }
 
 // newErrConnect returns a ErrConnect with given error code

@@ -113,15 +113,28 @@ func (s *Checker) CheckAddr(addr string, timeout time.Duration, zeroLinger ...bo
 			err = cErr
 		}
 	}()
+	var retry bool
 	// Connect to the address
-	if err = s.doConnect(fd, rAddr); err != nil {
-		return
+	for {
+		retry, err = s.doConnect(fd, rAddr)
+		if !retry {
+			break
+		}
+		time.Sleep(time.Millisecond) // TODO: Better idea?
+
+		// Check if the deadline was hit
+		if reached(deadline) {
+			return ErrTimeout
+		}
+	}
+	if err != nil {
+		return &ErrConnect{err}
 	}
 	// Check if the deadline was hit
 	if reached(deadline) {
-		err = ErrTimeout
-		return
+		return ErrTimeout
 	}
+
 	// Register to epoll for later error checking
 	if err = s.registerFd(fd); err != nil {
 		return
@@ -213,10 +226,13 @@ func (s *Checker) waitForConnected(fd int, timeoutMS int) (bool, error) {
 	return false, nil
 }
 
-// doConnect calls the connect syscall with some error handled
-func (s *Checker) doConnect(fd int, addr syscall.Sockaddr) error {
+// doConnect calls the connect syscall with error handled.
+// NOTE: return value: needRetry, error
+func (s *Checker) doConnect(fd int, addr syscall.Sockaddr) (bool, error) {
 	switch err := syscall.Connect(fd, addr); err {
 	case syscall.EINPROGRESS, syscall.EALREADY, syscall.EINTR:
+		// retry
+		return true, err
 	case nil, syscall.EISCONN:
 		// already connected
 	case syscall.EINVAL:
@@ -226,13 +242,13 @@ func (s *Checker) doConnect(fd int, addr syscall.Sockaddr) error {
 		// the socket will see EOF.  For details and a test
 		// case in C see https://golang.org/issue/6828.
 		if runtime.GOOS == "solaris" {
-			return nil
+			return false, nil
 		}
 		fallthrough
 	default:
-		return os.NewSyscallError("connect", err)
+		return false, err
 	}
-	return nil
+	return false, nil
 }
 
 // reached tests if the given deadline was hit

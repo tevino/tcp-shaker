@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 )
@@ -94,4 +95,35 @@ func TestClose(t *testing.T) {
 	// Check non-routable address, thus timeout
 	err = s.CheckAddr("10.0.0.0:1", timeout)
 	assert(t, err == ErrTimeout)
+}
+
+func TestCheckAddrConcurrently(t *testing.T) {
+	// Create checker
+	s := NewChecker(true)
+	if err := s.InitChecker(); err != nil {
+		t.Fatal("Checker init failed:", err)
+	}
+
+	var wg sync.WaitGroup
+
+	tasks := make(chan bool, 10)
+	worker := func() {
+		for range tasks {
+			if err := s.CheckAddr("10.0.0.0:1", time.Second); err == nil {
+				t.Fatal("Concurrent testing failed")
+			}
+			wg.Done()
+		}
+	}
+
+	for i := 0; i < 10; i++ {
+		go worker()
+	}
+
+	for i := 0; i < 1000; i++ {
+		tasks <- true
+		wg.Add(1)
+	}
+	wg.Wait()
+	close(tasks)
 }
