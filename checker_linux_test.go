@@ -33,11 +33,7 @@ func ExampleChecker() {
 	case nil:
 		fmt.Println("Connect to Google succeeded")
 	default:
-		if e, ok := err.(*ErrConnect); ok {
-			fmt.Println("Connect to Google failed:", e)
-		} else {
-			fmt.Println("Error occurred while connecting:", err)
-		}
+		fmt.Println("Error occurred while connecting:", err)
 	}
 }
 

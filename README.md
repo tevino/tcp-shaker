@@ -37,6 +37,12 @@ considered as some misbehaviour of client.**
 ## Requirements:
 - Linux 2.4 or newer
 
+There is a **fake implementation** for **non-Linux** platform which is equivalent to:
+```go
+conn, err := net.DialTimeout("tcp", addr, timeout)
+conn.Close()
+```
+
 ## Usage
 ```go
 	import "github.com/tevino/tcp-shaker"
