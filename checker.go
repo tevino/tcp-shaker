@@ -8,19 +8,28 @@ import (
 )
 
 // Checker is a fake implementation.
-type Checker struct{}
+type Checker struct {
+	zeroLinger bool
+}
 
-// NewChecker creates a Checker, parameters are ignored.
-func NewChecker(zeroLinger bool) *Checker { return &Checker{} }
+// NewChecker creates a Checker with linger set to zero or not.
+func NewChecker(zeroLinger bool) *Checker {
+	return &Checker{zeroLinger: zeroLinger}
+}
 
 // InitChecker is unnecessary on this platform.
 func (s *Checker) InitChecker() error { return nil }
 
 // CheckAddr performs a TCP check with given TCP address and timeout.
-// NOTE: zeroLinger is ignored on this platform.
+// NOTE: zeroLinger is ignored on non-POSIX operating systems because
+// net.TCPConn.SetLinger is only implemented in src/net/sockopt_posix.go.
 func (s *Checker) CheckAddr(addr string, timeout time.Duration, zeroLinger ...bool) error {
 	conn, err := net.DialTimeout("tcp", addr, timeout)
 	if conn != nil {
+		if (len(zeroLinger) > 0 && zeroLinger[0]) || s.zeroLinger {
+			// Simply ignore the error since this is a fake implementation.
+			conn.(*net.TCPConn).SetLinger(0)
+		}
 		conn.Close()
 	}
 	if opErr, ok := err.(*net.OpError); ok {
