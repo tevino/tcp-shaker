@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net"
@@ -10,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/tevino/tcp-shaker"
+	tcp "github.com/tevino/tcp-shaker"
 )
 
 // Counter is an atomic counter for multiple metrics.
@@ -101,7 +102,7 @@ func NewConcurrentChecker(conf *Config) *ConcurrentChecker {
 	return &ConcurrentChecker{
 		conf:    conf,
 		counter: NewCounter(CRequest, CSucceed, CErrConnect, CErrTimeout, CErrOther),
-		checker: tcp.NewChecker(true),
+		checker: tcp.NewChecker(),
 		queue:   make(chan bool),
 		closed:  make(chan bool),
 	}
@@ -114,10 +115,12 @@ func (cc *ConcurrentChecker) Count(i int) uint64 {
 }
 
 // Launch initialize the checker.
-func (cc *ConcurrentChecker) Launch() error {
-	if err := cc.checker.InitChecker(); err != nil {
-		return err
-	}
+func (cc *ConcurrentChecker) Launch(ctx context.Context) error {
+	var err error
+	go func() {
+		err = cc.checker.CheckingLoop(ctx)
+	}()
+
 	for i := 0; i < cc.conf.Concurrency; i++ {
 		go cc.worker()
 	}
@@ -127,7 +130,7 @@ func (cc *ConcurrentChecker) Launch() error {
 			cc.queue <- true
 		}
 	}()
-	return nil
+	return err
 }
 
 func (cc *ConcurrentChecker) doCheck() {
@@ -196,7 +199,8 @@ Concurrency: %d`, conf.Addr, conf.Timeout, conf.Requests, conf.Concurrency)
 	go setupSignal(exit)
 	startedAt := time.Now()
 
-	if err := checker.Launch(); err != nil {
+	var ctx, cancel = context.WithCancel(context.Background())
+	if err := checker.Launch(ctx); err != nil {
 		log.Fatal("Initializing failed: ", err)
 	}
 	select {
@@ -205,6 +209,7 @@ Concurrency: %d`, conf.Addr, conf.Timeout, conf.Requests, conf.Concurrency)
 	}
 
 	duration := time.Now().Sub(startedAt)
+	cancel()
 
 	log.Println("")
 	log.Printf("Finished %d/%d checks in %s\n", checker.Count(CRequest), conf.Requests, duration)

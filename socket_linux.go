@@ -1,34 +1,49 @@
-// +build linux
-
 package tcp
 
 import (
-	"net"
+	"os"
 	"syscall"
+	"time"
 )
 
-// parseSockAddr resolves given addr to syscall.Sockaddr
-func parseSockAddr(addr string) (syscall.Sockaddr, error) {
-	tAddr, err := net.ResolveTCPAddr("tcp", addr)
+const maxEpollEvents = 32
+
+// createSocket creates a socket with necessary options set.
+func createSocketZeroLinger(zeroLinger bool) (fd int, err error) {
+	// Create socket
+	fd, err = _createNonBlockingSocket()
+	if err == nil {
+		if zeroLinger {
+			err = _setZeroLinger(fd)
+		}
+	}
+	return
+}
+
+// createNonBlockingSocket creates a non-blocking socket with necessary options all set.
+func _createNonBlockingSocket() (int, error) {
+	// Create socket
+	fd, err := _createSocket()
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	var addr4 [4]byte
-	if tAddr.IP != nil {
-		copy(addr4[:], tAddr.IP.To4()) // copy last 4 bytes of slice to array
+	// Set necessary options
+	err = _setSockOpts(fd)
+	if err != nil {
+		syscall.Close(fd)
 	}
-	return &syscall.SockaddrInet4{Port: tAddr.Port, Addr: addr4}, nil
+	return fd, err
 }
 
 // createSocket creates a socket with CloseOnExec set
-func createSocket() (int, error) {
+func _createSocket() (int, error) {
 	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 	syscall.CloseOnExec(fd)
 	return fd, err
 }
 
 // setSockOpts sets SOCK_NONBLOCK and TCP_QUICKACK for given fd
-func setSockOpts(fd int) error {
+func _setSockOpts(fd int) error {
 	err := syscall.SetNonblock(fd, true)
 	if err != nil {
 		return err
@@ -39,6 +54,56 @@ func setSockOpts(fd int) error {
 var zeroLinger = syscall.Linger{Onoff: 1, Linger: 0}
 
 // setLinger sets SO_Linger with 0 timeout to given fd
-func setZeroLinger(fd int) error {
+func _setZeroLinger(fd int) error {
 	return syscall.SetsockoptLinger(fd, syscall.SOL_SOCKET, syscall.SO_LINGER, &zeroLinger)
+}
+
+func createPoller() (fd int, err error) {
+	fd, err = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
+	if err != nil {
+		err = os.NewSyscallError("epoll_create1", err)
+	}
+	return fd, err
+}
+
+const EPOLLET = 1 << 31
+
+// registerEvents registers given fd with read and write events.
+func registerEvents(pollerFd int, fd int) error {
+	var event syscall.EpollEvent
+	event.Events = syscall.EPOLLOUT | syscall.EPOLLIN | EPOLLET
+	event.Fd = int32(fd)
+	if err := syscall.EpollCtl(pollerFd, syscall.EPOLL_CTL_ADD, fd, &event); err != nil {
+		return os.NewSyscallError("epoll_ctl", err)
+	}
+	return nil
+}
+
+func pollEvents(pollerFd int, timeout time.Duration) ([]event, error) {
+	var timeoutMS = int(timeout.Nanoseconds() / 1000000)
+	var epollEvents [maxEpollEvents]syscall.EpollEvent
+	nEvents, err := syscall.EpollWait(pollerFd, epollEvents[:], timeoutMS)
+	if err != nil {
+		if err == syscall.EINTR {
+			return nil, nil
+		}
+		return nil, os.NewSyscallError("epoll_wait", err)
+	}
+
+	var events = make([]event, 0, nEvents)
+
+	for i := 0; i < nEvents; i++ {
+		var fd = int(epollEvents[i].Fd)
+		var evt = event{Fd: fd, Err: nil}
+
+		errCode, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_ERROR)
+		if err != nil {
+			evt.Err = os.NewSyscallError("getsockopt", err)
+		}
+		if errCode != 0 {
+			evt.Err = newErrConnect(errCode)
+		}
+		events = append(events, evt)
+	}
+	return events, nil
 }

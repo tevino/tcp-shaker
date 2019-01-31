@@ -1,5 +1,3 @@
-// +build linux
-
 // Package tcp is used to perform TCP handshake without ACK,
 // useful for health checking, HAProxy does this exactly the same.
 // Which is SYN, SYN-ACK, RST.
@@ -33,42 +31,139 @@
 package tcp
 
 import (
-	"os"
-	"runtime"
+	"context"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
-)
 
-const maxEpollEvents = 32
+	"github.com/pkg/errors"
+)
 
 // Checker contains an epoll instance for TCP handshake checking
 type Checker struct {
-	sync.RWMutex
-	epollFd    int
-	zeroLinger bool
+	pipePool
+	_pollerFd     int32
+	zeroLinger    bool
+	l             sync.Mutex
+	fdResultPipes map[int]chan error
+	isReady       chan struct{}
 }
 
-// NewChecker creates a Checker with linger set to zero or not
-func NewChecker(zeroLinger bool) *Checker {
-	return &Checker{zeroLinger: zeroLinger}
+// NewChecker creates a Checker with linger set to zero.
+func NewChecker() *Checker {
+	return NewCheckerZeroLinger(true)
 }
 
-// InitChecker creates inner epoll instance, call this before anything else
-func (s *Checker) InitChecker() error {
-	var err error
-	s.Lock()
-	defer s.Unlock()
-	// Check if we already initialized
-	if s.epollFd > 0 {
-		return nil
+// NewCheckerZeroLinger creates a Checker with zeroLinger set to given value.
+func NewCheckerZeroLinger(zeroLinger bool) *Checker {
+	return &Checker{
+		pipePool:      newPipePool(),
+		_pollerFd:     -1,
+		zeroLinger:    zeroLinger,
+		fdResultPipes: make(map[int]chan error),
+		isReady:       make(chan struct{}),
 	}
-	// Create epoll instance
-	s.epollFd, err = syscall.EpollCreate1(0)
+}
+
+// CheckingLoop must be called before anything else.
+// NOTE: this function blocks until ctx got canceled.
+func (c *Checker) CheckingLoop(ctx context.Context) error {
+	pollerFd, err := c.createPoller()
 	if err != nil {
-		return os.NewSyscallError("epoll_create1", err)
+		return errors.Wrap(err, "error creating poller")
 	}
-	return nil
+	defer c.closePoller()
+
+	c.setReady()
+	defer c.resetReady()
+
+	return c.pollingLoop(ctx, pollerFd)
+}
+
+func (c *Checker) createPoller() (int, error) {
+	c.l.Lock()
+	defer c.l.Unlock()
+
+	if c.pollerFD() > 0 {
+		// return if already initialized
+		return -1, ErrCheckerAlreadyStarted
+	}
+
+	pollerFd, err := createPoller()
+	if err != nil {
+		return -1, err
+	}
+	c.setPollerFD(pollerFd)
+
+	return pollerFd, nil
+}
+
+func (c *Checker) closePoller() error {
+	c.l.Lock()
+	defer c.l.Unlock()
+	var err error
+	if c.pollerFD() > 0 {
+		err = syscall.Close(c.pollerFD())
+	}
+	c.setPollerFD(-1)
+	return err
+}
+
+func (c *Checker) setReady() {
+	close(c.isReady)
+}
+
+func (c *Checker) resetReady() {
+	c.isReady = make(chan struct{})
+}
+
+const pollerTimeout = time.Second
+
+func (c *Checker) pollingLoop(ctx context.Context, pollerFd int) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			evts, err := pollEvents(pollerFd, pollerTimeout)
+			if err != nil {
+				// fatal error
+				return errors.Wrap(err, "error during polling loop")
+			}
+
+			c.handlePollerEvents(evts)
+		}
+	}
+}
+
+func (c *Checker) handlePollerEvents(evts []event) {
+	for _, e := range evts {
+		pipe := c.popErrPipe(e.Fd)
+		if pipe != nil {
+			pipe <- e.Err
+		}
+		// error pipe not found
+		// in this case, e.Fd should have been handled in the previous event.
+	}
+}
+
+func (c *Checker) popErrPipe(fd int) chan error {
+	c.l.Lock()
+	p, exist := c.fdResultPipes[fd]
+	if exist {
+		delete(c.fdResultPipes, fd)
+	}
+	c.l.Unlock()
+	return p
+}
+
+func (c *Checker) pollerFD() int {
+	return int(atomic.LoadInt32(&c._pollerFd))
+}
+
+func (c *Checker) setPollerFD(fd int) {
+	atomic.StoreInt32(&c._pollerFd, int32(fd))
 }
 
 // CheckAddr performs a TCP check with given TCP address and timeout
@@ -77,183 +172,83 @@ func (s *Checker) InitChecker() error {
 // zeroLinger is an optional parameter indicating if linger should be set to zero
 // for this particular connection
 // Note: timeout includes domain resolving
-func (s *Checker) CheckAddr(addr string, timeout time.Duration, zeroLinger ...bool) (err error) {
+func (c *Checker) CheckAddr(addr string, timeout time.Duration) (err error) {
+	return c.CheckAddrZeroLinger(addr, timeout, c.zeroLinger)
+}
+
+func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLinger bool) error {
 	// Set deadline
 	deadline := time.Now().Add(timeout)
+
 	// Parse address
-	var rAddr syscall.Sockaddr
-	if rAddr, err = parseSockAddr(addr); err != nil {
+	rAddr, err := parseSockAddr(addr)
+	if err != nil {
 		return err
 	}
 	// Create socket with options set
-	var fd int
-	if fd, err = s.createSocket(zeroLinger...); err != nil {
-		return
-	}
-	defer func() {
-		// Socket should be closed anyway
-		cErr := syscall.Close(fd)
-		// Error from close should be returned if no other error happened
-		if err == nil {
-			err = cErr
-		}
-	}()
-	var retry bool
-	// Connect to the address
-	for {
-		retry, err = s.doConnect(fd, rAddr)
-		if !retry {
-			break
-		}
-		time.Sleep(time.Millisecond) // TODO: Better idea?
-
-		// Check if the deadline was hit
-		if reached(deadline) {
-			return ErrTimeout
-		}
-	}
+	fd, err := createSocketZeroLinger(zeroLinger)
 	if err != nil {
-		return &ErrConnect{err}
-	}
-	// Check if the deadline was hit
-	if reached(deadline) {
-		return ErrTimeout
-	}
-
-	// Register to epoll for later error checking
-	if err = s.registerFd(fd); err != nil {
-		return
-	}
-	// Check for connect error
-	var succeed bool
-	var timeoutMS = int(timeout.Nanoseconds() / 1000000)
-	for {
-		succeed, err = s.waitForConnected(fd, timeoutMS)
-		// Check if the deadline was hit
-		if reached(deadline) {
-			return ErrTimeout
-		}
-		if succeed || err != nil {
-			break
-		}
-	}
-	return
-}
-
-// Ready returns a bool indicates whether the Checker is ready for use
-func (s *Checker) Ready() bool {
-	s.RLock()
-	defer s.RUnlock()
-	return s.epollFd > 0
-}
-
-// Close closes the inner epoll fd
-// InitChecker needs to be called before reuse of the closed Checker
-func (s *Checker) Close() error {
-	s.Lock()
-	defer s.Unlock()
-	if s.epollFd > 0 {
-		err := syscall.Close(s.epollFd)
-		s.epollFd = 0
 		return err
 	}
-	return nil
+	// Socket should be closed anyway
+	defer syscall.Close(fd)
+
+	// Connect to the address
+	if success, cErr := connect(fd, rAddr); cErr != nil {
+		// If there was an error, return it.
+		return &ErrConnect{cErr}
+	} else if success {
+		// If the connect was successful, we are done.
+		return nil
+	}
+	// Otherwise wait for the result of connect.
+	return c.waitConnectResult(fd, deadline.Sub(time.Now()))
 }
 
-// EpollFd returns the inner fd of epoll instance
-// NOTE: Use this only when you really know what you are doing
-func (s *Checker) EpollFd() int {
-	s.RLock()
-	defer s.RUnlock()
-	return s.epollFd
+func (c *Checker) waitConnectResult(fd int, timeout time.Duration) error {
+	// get a pipe of connect result
+	resultPipe := c.getPipe()
+	defer c.putBackPipe(resultPipe)
+
+	// this must be done before registerEvents
+	c.registerResultPipe(fd, resultPipe)
+	// Register to epoll for later error checking
+	if err := registerEvents(c.pollerFD(), fd); err != nil {
+		return err
+	}
+
+	// Wait for connect result
+	return c.waitPipeTimeout(resultPipe, timeout)
 }
 
-// createSocket creats a socket with necessary options set
-func (s *Checker) createSocket(zeroLinger ...bool) (fd int, err error) {
-	// Create socket
-	fd, err = createSocket()
-	// Set necessary options
-	if err == nil {
-		err = setSockOpts(fd)
-	}
-	// Set linger if zeroLinger or s.zeroLinger is on
-	if err == nil {
-		if (len(zeroLinger) > 0 && zeroLinger[0]) || s.zeroLinger {
-			err = setZeroLinger(fd)
-		}
-	}
-	return
+func (c *Checker) registerResultPipe(fd int, pipe chan error) {
+	c.l.Lock()
+	// NOTE: the pipe should have been put back if c.fdResultPipes[fd] exists.
+	c.fdResultPipes[fd] = pipe
+	c.l.Unlock()
 }
 
-// registerFd registers given fd to epoll with EPOLLOUT
-func (s *Checker) registerFd(fd int) error {
-	var event syscall.EpollEvent
-	event.Events = syscall.EPOLLOUT
-	event.Fd = int32(fd)
-	s.RLock()
-	defer s.RUnlock()
-	if err := syscall.EpollCtl(s.epollFd, syscall.EPOLL_CTL_ADD, fd, &event); err != nil {
-		return os.NewSyscallError("epoll_ctl", err)
+func (c *Checker) waitPipeTimeout(pipe chan error, timeout time.Duration) error {
+	select {
+	case ret := <-pipe:
+		return ret
+	case <-time.After(timeout):
+		return ErrTimeout
 	}
-	return nil
 }
 
-// waitForConnected waits for epoll event of given fd with given timeout
-// The boolean returned indicates whether the previous connect is successful
-func (s *Checker) waitForConnected(fd int, timeoutMS int) (bool, error) {
-	var events [maxEpollEvents]syscall.EpollEvent
-	s.RLock()
-	epollFd := s.epollFd
-	if epollFd <= 0 {
-		return false, ErrNotInitialized
-	}
-	s.RUnlock()
-	nevents, err := syscall.EpollWait(epollFd, events[:], timeoutMS)
-	if err != nil {
-		return false, os.NewSyscallError("epoll_wait", err)
-	}
-
-	for ev := 0; ev < nevents; ev++ {
-		if int(events[ev].Fd) == fd {
-			errCode, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_ERROR)
-			if err != nil {
-				return false, os.NewSyscallError("getsockopt", err)
-			}
-			if errCode != 0 {
-				return false, newErrConnect(errCode)
-			}
-			return true, nil
-		}
-	}
-	return false, nil
+// WaitReady returns a chan which is closed when the Checker is ready for use.
+func (c *Checker) WaitReady() <-chan struct{} {
+	return c.isReady
 }
 
-// doConnect calls the connect syscall with error handled.
-// NOTE: return value: needRetry, error
-func (s *Checker) doConnect(fd int, addr syscall.Sockaddr) (bool, error) {
-	switch err := syscall.Connect(fd, addr); err {
-	case syscall.EINPROGRESS, syscall.EALREADY, syscall.EINTR:
-		// retry
-		return true, err
-	case nil, syscall.EISCONN:
-		// already connected
-	case syscall.EINVAL:
-		// On Solaris we can see EINVAL if the socket has
-		// already been accepted and closed by the server.
-		// Treat this as a successful connection--writes to
-		// the socket will see EOF.  For details and a test
-		// case in C see https://golang.org/issue/6828.
-		if runtime.GOOS == "solaris" {
-			return false, nil
-		}
-		fallthrough
-	default:
-		return false, err
-	}
-	return false, nil
+// IsReady returns a bool indicates whether the Checker is ready for use
+func (c *Checker) IsReady() bool {
+	return c.pollerFD() > 0
 }
 
-// reached tests if the given deadline was hit
-func reached(deadline time.Time) bool {
-	return !deadline.IsZero() && deadline.Before(time.Now())
+// PollerFd returns the inner fd of poller instance.
+// NOTE: Use this only when you really know what you are doing.
+func (c *Checker) PollerFd() int {
+	return c.pollerFD()
 }
