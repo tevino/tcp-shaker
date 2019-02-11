@@ -1,33 +1,3 @@
-// Package tcp is used to perform TCP handshake without ACK,
-// useful for health checking, HAProxy does this exactly the same.
-// Which is SYN, SYN-ACK, RST.
-//
-// Why do I have to do this?
-// Usually when you establish a TCP connection(e.g. net.Dial), these
-// are the first three packets (TCP three-way handshake):
-//
-//	SYN:     Client -> Server
-//	SYN-ACK: Server -> Client
-//	ACK:     Client -> Server
-//
-// This package tries to avoid the last ACK when doing handshakes.
-//
-// By sending the last ACK, the connection is considered established.
-// However as for TCP health checking the last ACK may not necessary.
-// The Server could be considered alive after it sends back SYN-ACK.
-//
-// Benefits of avoiding the last ACK:
-//
-// 1. Less packets better efficiency
-//
-// 2. The health checking is less obvious
-//
-// The second one is essential, because it bothers server less.
-// Usually this means the server will not notice the health checking
-// traffic at all, thus the act of health checking will not be
-// considered as some misbehaviour of client.
-//
-// Checker's methods may be called by multiple goroutines simultaneously.
 package tcp
 
 import (
