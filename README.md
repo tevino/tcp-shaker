@@ -64,6 +64,8 @@ conn.Close()
 		}
 	}()
 
+	<-c.WaitReady()
+
 	timeout := time.Second * 1
 	err := c.CheckAddr("google.com:80", timeout)
 	switch err {

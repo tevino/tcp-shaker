@@ -128,6 +128,12 @@ func (cc *ConcurrentChecker) Launch(ctx context.Context) error {
 		go cc.worker()
 	}
 	cc.wg.Add(cc.conf.Requests)
+
+	if cc.conf.Verbose {
+		fmt.Println("Waiting for checker to be ready")
+	}
+	<-cc.checker.WaitReady()
+
 	go func() {
 		for i := 0; i < cc.conf.Requests; i++ {
 			cc.queue <- true
