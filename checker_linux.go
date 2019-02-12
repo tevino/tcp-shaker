@@ -177,7 +177,10 @@ func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLi
 func (c *Checker) waitConnectResult(fd int, timeout time.Duration) error {
 	// get a pipe of connect result
 	resultPipe := c.getPipe()
-	defer c.putBackPipe(resultPipe)
+	defer func() {
+		c.deregisterResultPipe(fd)
+		c.putBackPipe(resultPipe)
+	}()
 
 	// this must be done before registerEvents
 	c.registerResultPipe(fd, resultPipe)
@@ -188,6 +191,10 @@ func (c *Checker) waitConnectResult(fd int, timeout time.Duration) error {
 
 	// Wait for connect result
 	return c.waitPipeTimeout(resultPipe, timeout)
+}
+
+func (c *Checker) deregisterResultPipe(fd int) {
+	c.fdResultPipes.Delete(fd)
 }
 
 func (c *Checker) registerResultPipe(fd int, pipe chan error) {
