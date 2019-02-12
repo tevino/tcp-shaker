@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -61,6 +62,7 @@ type Config struct {
 	Timeout     time.Duration
 	Requests    int
 	Concurrency int
+	Verbose     bool
 }
 
 func parseConfig() *Config {
@@ -71,6 +73,7 @@ func parseConfig() *Config {
 	flag.StringVar(&conf.Addr, "a", "google.com:80", "TCP address to test")
 	flag.IntVar(&conf.Requests, "n", 1, "Number of requests to perform")
 	flag.IntVar(&conf.Concurrency, "c", 1, "Number of checks to perform simultaneously")
+	flag.BoolVar(&conf.Verbose, "v", false, "Print more logs e.g. error detail")
 	// Parse flags
 	flag.Parse()
 	if _, err := net.ResolveTCPAddr("tcp", conf.Addr); err != nil {
@@ -142,6 +145,9 @@ func (cc *ConcurrentChecker) doCheck() {
 	case nil:
 		cc.counter.Inc(CSucceed)
 	default:
+		if cc.conf.Verbose {
+			fmt.Println(err)
+		}
 		if _, ok := err.(*tcp.ErrConnect); ok {
 			cc.counter.Inc(CErrConnect)
 		} else {
@@ -209,6 +215,9 @@ Concurrency: %d`, conf.Addr, conf.Timeout, conf.Requests, conf.Concurrency)
 	}
 
 	duration := time.Now().Sub(startedAt)
+	if conf.Verbose {
+		log.Println("Canceling checking loop")
+	}
 	cancel()
 
 	log.Println("")
