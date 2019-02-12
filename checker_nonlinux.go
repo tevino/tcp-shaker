@@ -21,7 +21,9 @@ func NewChecker() *Checker {
 
 // NewCheckerZeroLinger creates a Checker with zeroLinger set to given value.
 func NewCheckerZeroLinger(zeroLinger bool) *Checker {
-	return &Checker{zeroLinger: zeroLinger, isReady: make(chan struct{})}
+	isReady := make(chan struct{})
+	close(isReady)
+	return &Checker{zeroLinger: zeroLinger, isReady: isReady}
 }
 
 // CheckingLoop is unnecessary on this platform.
