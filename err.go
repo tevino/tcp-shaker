@@ -8,9 +8,6 @@ import (
 // ErrTimeout indicates I/O timeout
 var ErrTimeout = &timeoutError{}
 
-// ErrNotInitialized occurs while the Checker is not initialized
-var ErrNotInitialized = errors.New("not initialized")
-
 type timeoutError struct{}
 
 func (e *timeoutError) Error() string   { return "I/O timeout" }
@@ -27,3 +24,6 @@ type ErrConnect struct {
 func newErrConnect(errCode int) *ErrConnect {
 	return &ErrConnect{syscall.Errno(errCode)}
 }
+
+// ErrCheckerAlreadyStarted indicates there is another instance of CheckingLoop running.
+var ErrCheckerAlreadyStarted = errors.New("Checker was already started")

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -10,7 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/tevino/tcp-shaker"
+	tcp "github.com/tevino/tcp-shaker"
 )
 
 // Counter is an atomic counter for multiple metrics.
@@ -60,6 +62,7 @@ type Config struct {
 	Timeout     time.Duration
 	Requests    int
 	Concurrency int
+	Verbose     bool
 }
 
 func parseConfig() *Config {
@@ -70,6 +73,7 @@ func parseConfig() *Config {
 	flag.StringVar(&conf.Addr, "a", "google.com:80", "TCP address to test")
 	flag.IntVar(&conf.Requests, "n", 1, "Number of requests to perform")
 	flag.IntVar(&conf.Concurrency, "c", 1, "Number of checks to perform simultaneously")
+	flag.BoolVar(&conf.Verbose, "v", false, "Print more logs e.g. error detail")
 	// Parse flags
 	flag.Parse()
 	if _, err := net.ResolveTCPAddr("tcp", conf.Addr); err != nil {
@@ -101,7 +105,7 @@ func NewConcurrentChecker(conf *Config) *ConcurrentChecker {
 	return &ConcurrentChecker{
 		conf:    conf,
 		counter: NewCounter(CRequest, CSucceed, CErrConnect, CErrTimeout, CErrOther),
-		checker: tcp.NewChecker(true),
+		checker: tcp.NewChecker(),
 		queue:   make(chan bool),
 		closed:  make(chan bool),
 	}
@@ -114,20 +118,29 @@ func (cc *ConcurrentChecker) Count(i int) uint64 {
 }
 
 // Launch initialize the checker.
-func (cc *ConcurrentChecker) Launch() error {
-	if err := cc.checker.InitChecker(); err != nil {
-		return err
-	}
+func (cc *ConcurrentChecker) Launch(ctx context.Context) error {
+	var err error
+	go func() {
+		err := cc.checker.CheckingLoop(ctx)
+		log.Fatal("Error during checking loop: ", err)
+	}()
+
 	for i := 0; i < cc.conf.Concurrency; i++ {
 		go cc.worker()
 	}
 	cc.wg.Add(cc.conf.Requests)
+
+	if cc.conf.Verbose {
+		fmt.Println("Waiting for checker to be ready")
+	}
+	<-cc.checker.WaitReady()
+
 	go func() {
 		for i := 0; i < cc.conf.Requests; i++ {
 			cc.queue <- true
 		}
 	}()
-	return nil
+	return err
 }
 
 func (cc *ConcurrentChecker) doCheck() {
@@ -139,6 +152,9 @@ func (cc *ConcurrentChecker) doCheck() {
 	case nil:
 		cc.counter.Inc(CSucceed)
 	default:
+		if cc.conf.Verbose {
+			fmt.Println(err)
+		}
 		if _, ok := err.(*tcp.ErrConnect); ok {
 			cc.counter.Inc(CErrConnect)
 		} else {
@@ -196,7 +212,8 @@ Concurrency: %d`, conf.Addr, conf.Timeout, conf.Requests, conf.Concurrency)
 	go setupSignal(exit)
 	startedAt := time.Now()
 
-	if err := checker.Launch(); err != nil {
+	var ctx, cancel = context.WithCancel(context.Background())
+	if err := checker.Launch(ctx); err != nil {
 		log.Fatal("Initializing failed: ", err)
 	}
 	select {
@@ -205,6 +222,10 @@ Concurrency: %d`, conf.Addr, conf.Timeout, conf.Requests, conf.Concurrency)
 	}
 
 	duration := time.Now().Sub(startedAt)
+	if conf.Verbose {
+		log.Println("Canceling checking loop")
+	}
+	cancel()
 
 	log.Println("")
 	log.Printf("Finished %d/%d checks in %s\n", checker.Count(CRequest), conf.Requests, duration)
