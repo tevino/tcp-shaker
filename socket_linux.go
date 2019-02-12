@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"fmt"
 	"os"
 	"syscall"
 	"time"
@@ -74,7 +75,7 @@ func registerEvents(pollerFd int, fd int) error {
 	event.Events = syscall.EPOLLOUT | syscall.EPOLLIN | EPOLLET
 	event.Fd = int32(fd)
 	if err := syscall.EpollCtl(pollerFd, syscall.EPOLL_CTL_ADD, fd, &event); err != nil {
-		return os.NewSyscallError("epoll_ctl", err)
+		return os.NewSyscallError(fmt.Sprintf("epoll_ctl(%d, ADD, %d, ...)", pollerFd, fd), err)
 	}
 	return nil
 }
