@@ -80,4 +80,8 @@ conn.Close()
 
 - [ ] IPv6 support (Test environment needed, PRs are welcome)
 
+## Special thanks to contributors
+
+- @lujjjh
+
 [tcp-handshake]: https://en.wikipedia.org/wiki/Handshaking#TCP_three-way_handshake
