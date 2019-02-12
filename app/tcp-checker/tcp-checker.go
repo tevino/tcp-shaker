@@ -121,7 +121,8 @@ func (cc *ConcurrentChecker) Count(i int) uint64 {
 func (cc *ConcurrentChecker) Launch(ctx context.Context) error {
 	var err error
 	go func() {
-		err = cc.checker.CheckingLoop(ctx)
+		err := cc.checker.CheckingLoop(ctx)
+		log.Fatal("Error during checking loop: ", err)
 	}()
 
 	for i := 0; i < cc.conf.Concurrency; i++ {
