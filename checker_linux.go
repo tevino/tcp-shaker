@@ -13,10 +13,10 @@ import (
 // Checker contains an epoll instance for TCP handshake checking
 type Checker struct {
 	pipePool
+	pollerLock    sync.Mutex
 	_pollerFd     int32
 	zeroLinger    bool
-	l             sync.Mutex
-	fdResultPipes map[int]chan error
+	fdResultPipes sync.Map
 	isReady       chan struct{}
 }
 
@@ -28,11 +28,10 @@ func NewChecker() *Checker {
 // NewCheckerZeroLinger creates a Checker with zeroLinger set to given value.
 func NewCheckerZeroLinger(zeroLinger bool) *Checker {
 	return &Checker{
-		pipePool:      newPipePool(),
-		_pollerFd:     -1,
-		zeroLinger:    zeroLinger,
-		fdResultPipes: make(map[int]chan error),
-		isReady:       make(chan struct{}),
+		pipePool:   newPipePool(),
+		_pollerFd:  -1,
+		zeroLinger: zeroLinger,
+		isReady:    make(chan struct{}),
 	}
 }
 
@@ -52,8 +51,8 @@ func (c *Checker) CheckingLoop(ctx context.Context) error {
 }
 
 func (c *Checker) createPoller() (int, error) {
-	c.l.Lock()
-	defer c.l.Unlock()
+	c.pollerLock.Lock()
+	defer c.pollerLock.Unlock()
 
 	if c.pollerFD() > 0 {
 		// return if already initialized
@@ -70,8 +69,8 @@ func (c *Checker) createPoller() (int, error) {
 }
 
 func (c *Checker) closePoller() error {
-	c.l.Lock()
-	defer c.l.Unlock()
+	c.pollerLock.Lock()
+	defer c.pollerLock.Unlock()
 	var err error
 	if c.pollerFD() > 0 {
 		err = syscall.Close(c.pollerFD())
@@ -109,8 +108,7 @@ func (c *Checker) pollingLoop(ctx context.Context, pollerFd int) error {
 
 func (c *Checker) handlePollerEvents(evts []event) {
 	for _, e := range evts {
-		pipe := c.popErrPipe(e.Fd)
-		if pipe != nil {
+		if pipe, exists := c.popErrPipe(e.Fd); exists {
 			pipe <- e.Err
 		}
 		// error pipe not found
@@ -118,14 +116,15 @@ func (c *Checker) handlePollerEvents(evts []event) {
 	}
 }
 
-func (c *Checker) popErrPipe(fd int) chan error {
-	c.l.Lock()
-	p, exist := c.fdResultPipes[fd]
+func (c *Checker) popErrPipe(fd int) (chan error, bool) {
+	p, exist := c.fdResultPipes.Load(fd)
 	if exist {
-		delete(c.fdResultPipes, fd)
+		c.fdResultPipes.Delete(fd)
 	}
-	c.l.Unlock()
-	return p
+	if p != nil {
+		return p.(chan error), exist
+	}
+	return nil, exist
 }
 
 func (c *Checker) pollerFD() int {
@@ -192,10 +191,8 @@ func (c *Checker) waitConnectResult(fd int, timeout time.Duration) error {
 }
 
 func (c *Checker) registerResultPipe(fd int, pipe chan error) {
-	c.l.Lock()
 	// NOTE: the pipe should have been put back if c.fdResultPipes[fd] exists.
-	c.fdResultPipes[fd] = pipe
-	c.l.Unlock()
+	c.fdResultPipes.Store(fd, pipe)
 }
 
 func (c *Checker) waitPipeTimeout(pipe chan error, timeout time.Duration) error {
