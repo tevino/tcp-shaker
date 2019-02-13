@@ -74,7 +74,10 @@ func TestCheckAddr(t *testing.T) {
 	ts.Close()
 	// Check non-routable address, thus timeout
 	err = c.CheckAddr("10.0.0.0:1", timeout)
-	assert(t, err == ErrTimeout)
+	if err != ErrTimeout {
+		t.Log("expected ErrTimeout, got ", err)
+		t.FailNow()
+	}
 }
 
 func TestCheckAddrConcurrently(t *testing.T) {
