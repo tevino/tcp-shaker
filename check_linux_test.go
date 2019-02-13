@@ -58,11 +58,6 @@ func TestStopNStartChecker(t *testing.T) {
 	_testChecker(t, c)
 }
 
-const (
-	AddrDead    = "127.0.0.1:1"
-	AddrTimeout = "10.0.0.0:1"
-)
-
 func _startTestServer() (string, context.CancelFunc) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	addr := ts.Listener.Addr().String()
