@@ -58,6 +58,17 @@ func TestStopNStartChecker(t *testing.T) {
 	_testChecker(t, c)
 }
 
+const (
+	AddrDead    = "127.0.0.1:1"
+	AddrTimeout = "10.0.0.0:1"
+)
+
+func _startTestServer() (string, context.CancelFunc) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	addr := ts.Listener.Addr().String()
+	return addr, ts.Close
+}
+
 func _testChecker(t *testing.T, c *Checker) {
 	select {
 	case <-c.WaitReady():
@@ -66,17 +77,19 @@ func _testChecker(t *testing.T, c *Checker) {
 
 	timeout := time.Second * 2
 	// Check dead server
-	err := c.CheckAddr("127.0.0.1:1", timeout)
+	err := c.CheckAddr(AddrDead, timeout)
 	_, ok := err.(*ErrConnect)
 	assert(t, ok)
 
 	// Launch a server for test
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	addr, stop := _startTestServer()
+	defer stop()
+
 	// Check alive server
-	err = c.CheckAddr(ts.Listener.Addr().String(), timeout)
+	err = c.CheckAddr(addr, timeout)
 	assert(t, err == nil)
 
 	// Check non-routable address, thus timeout
-	err = c.CheckAddr("10.0.0.0:1", timeout)
+	err = c.CheckAddr(AddrTimeout, timeout)
 	assert(t, err == ErrTimeout)
 }
