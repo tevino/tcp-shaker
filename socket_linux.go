@@ -67,12 +67,12 @@ func createPoller() (fd int, err error) {
 	return fd, err
 }
 
-const EPOLLET = 1 << 31
+const epollET = 1 << 31
 
 // registerEvents registers given fd with read and write events.
 func registerEvents(pollerFd int, fd int) error {
 	var event syscall.EpollEvent
-	event.Events = syscall.EPOLLOUT | syscall.EPOLLIN | EPOLLET
+	event.Events = syscall.EPOLLOUT | syscall.EPOLLIN | epollET
 	event.Fd = int32(fd)
 	if err := syscall.EpollCtl(pollerFd, syscall.EPOLL_CTL_ADD, fd, &event); err != nil {
 		return os.NewSyscallError(fmt.Sprintf("epoll_ctl(%d, ADD, %d, ...)", pollerFd, fd), err)
