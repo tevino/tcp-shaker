@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+const (
+	AddrDead    = "127.0.0.1:1"
+	AddrTimeout = "10.255.255.1:80"
+)
+
 // assert calls t.Fatal if the result is false
 func assert(t *testing.T, result bool) {
 	if !result {
@@ -59,7 +64,7 @@ func TestCheckAddr(t *testing.T) {
 
 	timeout := time.Second * 2
 	// Check dead server
-	err = c.CheckAddr("127.0.0.1:1", timeout)
+	err = c.CheckAddr(AddrDead, timeout)
 	if runtime.GOOS == "linux" {
 		_, ok := err.(*ErrConnect)
 		assert(t, ok)
@@ -73,7 +78,7 @@ func TestCheckAddr(t *testing.T) {
 	assert(t, err == nil)
 	ts.Close()
 	// Check non-routable address, thus timeout
-	err = c.CheckAddr("10.0.0.0:1", timeout)
+	err = c.CheckAddr(AddrTimeout, timeout)
 	if err != ErrTimeout {
 		t.Log("expected ErrTimeout, got ", err)
 		t.FailNow()
@@ -90,7 +95,7 @@ func TestCheckAddrConcurrently(t *testing.T) {
 	var wg sync.WaitGroup
 
 	check := func() {
-		if err := c.CheckAddr("10.0.0.0:1", time.Millisecond*50); err == nil {
+		if err := c.CheckAddr(AddrTimeout, time.Millisecond*50); err == nil {
 			t.Fatal("Concurrent testing failed")
 		}
 		wg.Done()
