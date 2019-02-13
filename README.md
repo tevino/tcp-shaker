@@ -2,6 +2,7 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/tevino/tcp-shaker)](https://goreportcard.com/report/github.com/tevino/tcp-shaker)
 [![GoDoc](https://godoc.org/github.com/tevino/tcp-shaker?status.svg)](https://godoc.org/github.com/tevino/tcp-shaker)
+[![Build Status](https://travis-ci.org/tevino/tcp-shaker.svg?branch=master)](https://travis-ci.org/tevino/tcp-shaker)
 
 This package is used to perform TCP handshake without ACK, which useful for TCP health checking.
 
