@@ -135,6 +135,7 @@ func (c *Checker) CheckAddr(addr string, timeout time.Duration) (err error) {
 	return c.CheckAddrZeroLinger(addr, timeout, c.zeroLinger)
 }
 
+// CheckAddrZeroLinger is like CheckAddr with an extra parameter indicating whether to enable zero linger.
 func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLinger bool) error {
 	// Set deadline
 	deadline := time.Now().Add(timeout)
