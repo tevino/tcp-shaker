@@ -26,7 +26,7 @@ func _benchmarkChecker(b *testing.B, c *Checker, addr string) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			c.CheckAddr(AddrDead, time.Second)
+			c.CheckAddr(addr, time.Second)
 		}
 	})
 	b.StopTimer()
