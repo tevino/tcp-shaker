@@ -3,8 +3,10 @@ package tcp
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"runtime"
 	"sync"
 	"testing"
@@ -12,9 +14,32 @@ import (
 )
 
 const (
-	AddrDead    = "127.0.0.1:1"
-	AddrTimeout = "10.255.255.1:80"
+	AddrDead = "127.0.0.1:1"
 )
+
+var timeoutAddrs = []string{
+	"10.255.255.1:80",
+	"10.0.0.0:1",
+}
+var AddrTimeout = timeoutAddrs[0]
+
+func _setAddrTimeout() {
+	for _, addr := range timeoutAddrs {
+		conn, err := net.DialTimeout("tcp", addr, time.Millisecond*50)
+		if err == nil {
+			conn.Close()
+			continue
+		}
+		if os.IsTimeout(err) {
+			AddrTimeout = addr
+			return
+		}
+	}
+}
+
+func init() {
+	_setAddrTimeout()
+}
 
 // assert calls t.Fatal if the result is false
 func assert(t *testing.T, result bool) {
