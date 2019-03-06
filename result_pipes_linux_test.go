@@ -26,7 +26,8 @@ func _benchmarkChecker(b *testing.B, c *Checker, addr string) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			c.CheckAddr(addr, time.Second)
+			// if timeout >= 1s, this func will run only once in the benchmark.
+			c.CheckAddr(addr, time.Millisecond*900)
 		}
 	})
 	b.StopTimer()
