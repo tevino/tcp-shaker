@@ -21,7 +21,7 @@ func parseSockAddr(addr string) (syscall.Sockaddr, error) {
 
 // connect calls the connect syscall with error handled.
 func connect(fd int, addr syscall.Sockaddr) (success bool, err error) {
-	switch serr := syscall.Connect(fd, addr); serr {
+	switch serr := syscall.Connect(syscall.Handle(fd), addr); serr {
 	case syscall.EALREADY, syscall.EINPROGRESS, syscall.EINTR:
 		// Connection could not be made immediately but asynchronously.
 		success = false
