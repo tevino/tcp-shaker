@@ -12,11 +12,22 @@ func parseSockAddr(addr string) (syscall.Sockaddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	var addr4 [4]byte
-	if tAddr.IP != nil {
-		copy(addr4[:], tAddr.IP.To4()) // copy last 4 bytes of slice to array
+	var addr4 [net.IPv4len]byte
+	if tAddr.IP == nil {
+		return &syscall.SockaddrInet4{Port: tAddr.Port, Addr: addr4}, nil
 	}
-	return &syscall.SockaddrInet4{Port: tAddr.Port, Addr: addr4}, nil
+	if v4 := tAddr.IP.To4(); v4 != nil {
+		if tAddr.IP != nil {
+			copy(addr4[:], tAddr.IP.To4()) // copy last 4 bytes of slice to array
+		}
+		return &syscall.SockaddrInet4{Port: tAddr.Port, Addr: addr4}, nil
+	}
+
+	var addr6 [net.IPv6len]byte
+	if tAddr.IP != nil {
+		copy(addr6[:], tAddr.IP.To16()) // copy last 16 bytes of slice to array
+	}
+	return &syscall.SockaddrInet6{Port: tAddr.Port, Addr: addr6}, nil
 }
 
 // connect calls the connect syscall with error handled.

@@ -145,8 +145,9 @@ func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLi
 	if err != nil {
 		return err
 	}
+	_, ipv6 := rAddr.(*syscall.SockaddrInet6)
 	// Create socket with options set
-	fd, err := createSocketZeroLinger(zeroLinger)
+	fd, err := createSocketZeroLinger(zeroLinger, ipv6)
 	if err != nil {
 		return err
 	}
