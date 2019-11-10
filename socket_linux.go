@@ -3,8 +3,9 @@ package tcp
 import (
 	"fmt"
 	"os"
-	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 const maxEpollEvents = 32
@@ -31,50 +32,48 @@ func _createNonBlockingSocket() (int, error) {
 	// Set necessary options
 	err = _setSockOpts(fd)
 	if err != nil {
-		syscall.Close(fd)
+		unix.Close(fd)
 	}
 	return fd, err
 }
 
 // createSocket creates a socket with CloseOnExec set
 func _createSocket() (int, error) {
-	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
-	syscall.CloseOnExec(fd)
+	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_STREAM, 0)
+	unix.CloseOnExec(fd)
 	return fd, err
 }
 
 // setSockOpts sets SOCK_NONBLOCK and TCP_QUICKACK for given fd
 func _setSockOpts(fd int) error {
-	err := syscall.SetNonblock(fd, true)
+	err := unix.SetNonblock(fd, true)
 	if err != nil {
 		return err
 	}
-	return syscall.SetsockoptInt(fd, syscall.SOL_TCP, syscall.TCP_QUICKACK, 0)
+	return unix.SetsockoptInt(fd, unix.IPPROTO_TCP, unix.TCP_QUICKACK, 0)
 }
 
-var zeroLinger = syscall.Linger{Onoff: 1, Linger: 0}
+var zeroLinger = unix.Linger{Onoff: 1, Linger: 0}
 
 // setLinger sets SO_Linger with 0 timeout to given fd
 func _setZeroLinger(fd int) error {
-	return syscall.SetsockoptLinger(fd, syscall.SOL_SOCKET, syscall.SO_LINGER, &zeroLinger)
+	return unix.SetsockoptLinger(fd, unix.SOL_SOCKET, unix.SO_LINGER, &zeroLinger)
 }
 
 func createPoller() (fd int, err error) {
-	fd, err = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
+	fd, err = unix.EpollCreate1(unix.EPOLL_CLOEXEC)
 	if err != nil {
 		err = os.NewSyscallError("epoll_create1", err)
 	}
 	return fd, err
 }
 
-const epollET = 1 << 31
-
 // registerEvents registers given fd with read and write events.
 func registerEvents(pollerFd int, fd int) error {
-	var event syscall.EpollEvent
-	event.Events = syscall.EPOLLOUT | syscall.EPOLLIN | epollET
+	var event unix.EpollEvent
+	event.Events = unix.EPOLLOUT | unix.EPOLLIN | unix.EPOLLET
 	event.Fd = int32(fd)
-	if err := syscall.EpollCtl(pollerFd, syscall.EPOLL_CTL_ADD, fd, &event); err != nil {
+	if err := unix.EpollCtl(pollerFd, unix.EPOLL_CTL_ADD, fd, &event); err != nil {
 		return os.NewSyscallError(fmt.Sprintf("epoll_ctl(%d, ADD, %d, ...)", pollerFd, fd), err)
 	}
 	return nil
@@ -82,10 +81,10 @@ func registerEvents(pollerFd int, fd int) error {
 
 func pollEvents(pollerFd int, timeout time.Duration) ([]event, error) {
 	var timeoutMS = int(timeout.Nanoseconds() / 1000000)
-	var epollEvents [maxEpollEvents]syscall.EpollEvent
-	nEvents, err := syscall.EpollWait(pollerFd, epollEvents[:], timeoutMS)
+	var epollEvents [maxEpollEvents]unix.EpollEvent
+	nEvents, err := unix.EpollWait(pollerFd, epollEvents[:], timeoutMS)
 	if err != nil {
-		if err == syscall.EINTR {
+		if err == unix.EINTR {
 			return nil, nil
 		}
 		return nil, os.NewSyscallError("epoll_wait", err)
@@ -97,7 +96,7 @@ func pollEvents(pollerFd int, timeout time.Duration) ([]event, error) {
 		var fd = int(epollEvents[i].Fd)
 		var evt = event{Fd: fd, Err: nil}
 
-		errCode, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_ERROR)
+		errCode, err := unix.GetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_ERROR)
 		if err != nil {
 			evt.Err = os.NewSyscallError("getsockopt", err)
 		}
