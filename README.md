@@ -12,6 +12,8 @@ HAProxy does this exactly the same, which is:
 2. SYN-ACK
 3. RST
 
+This implementation has been running on tens of thousands of production servers for years.
+
 ## Why do I have to do this
 
 In most cases when you establish a TCP connection(e.g. via `net.Dial`), these are the first three packets between the client and server([TCP three-way handshake][tcp-handshake]):
@@ -45,6 +47,7 @@ considered as some misbehavior of client.**
 - Linux 2.4 or newer
 
 There is a **fake implementation** for **non-Linux** platform which is equivalent to:
+
 ```go
 conn, err := net.DialTimeout("tcp", addr, timeout)
 conn.Close()
