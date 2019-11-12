@@ -1,4 +1,4 @@
-module github.com/status-im/tcp-shaker
+module github.com/tevino/tcp-shaker
 
 go 1.13
 
