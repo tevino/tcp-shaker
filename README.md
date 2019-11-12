@@ -86,5 +86,6 @@ conn.Close()
 ## Special thanks to contributors
 
 - @lujjjh
+- @jakubgs Fixed compatibility on Android
 
 [tcp-handshake]: https://en.wikipedia.org/wiki/Handshaking#TCP_three-way_handshake

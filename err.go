@@ -2,7 +2,8 @@ package tcp
 
 import (
 	"errors"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // ErrTimeout indicates I/O timeout
@@ -22,7 +23,7 @@ type ErrConnect struct {
 
 // newErrConnect returns a ErrConnect with given error code
 func newErrConnect(errCode int) *ErrConnect {
-	return &ErrConnect{syscall.Errno(errCode)}
+	return &ErrConnect{unix.Errno(errCode)}
 }
 
 // ErrCheckerAlreadyStarted indicates there is another instance of CheckingLoop running.

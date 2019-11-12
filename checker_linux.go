@@ -4,10 +4,10 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 // Checker contains an epoll instance for TCP handshake checking
@@ -74,7 +74,7 @@ func (c *Checker) closePoller() error {
 	defer c.pollerLock.Unlock()
 	var err error
 	if c.pollerFD() > 0 {
-		err = syscall.Close(c.pollerFD())
+		err = unix.Close(c.pollerFD())
 	}
 	c.setPollerFD(-1)
 	return err
@@ -151,7 +151,7 @@ func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLi
 		return err
 	}
 	// Socket should be closed anyway
-	defer syscall.Close(fd)
+	defer unix.Close(fd)
 
 	// Connect to the address
 	if success, cErr := connect(fd, rAddr); cErr != nil {

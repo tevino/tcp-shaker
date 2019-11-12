@@ -3,11 +3,12 @@ package tcp
 import (
 	"net"
 	"runtime"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
-// parseSockAddr resolves given addr to syscall.Sockaddr
-func parseSockAddr(addr string) (syscall.Sockaddr, error) {
+// parseSockAddr resolves given addr to unix.Sockaddr
+func parseSockAddr(addr string) (unix.Sockaddr, error) {
 	tAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -16,21 +17,21 @@ func parseSockAddr(addr string) (syscall.Sockaddr, error) {
 	if tAddr.IP != nil {
 		copy(addr4[:], tAddr.IP.To4()) // copy last 4 bytes of slice to array
 	}
-	return &syscall.SockaddrInet4{Port: tAddr.Port, Addr: addr4}, nil
+	return &unix.SockaddrInet4{Port: tAddr.Port, Addr: addr4}, nil
 }
 
 // connect calls the connect syscall with error handled.
-func connect(fd int, addr syscall.Sockaddr) (success bool, err error) {
-	switch serr := syscall.Connect(fd, addr); serr {
-	case syscall.EALREADY, syscall.EINPROGRESS, syscall.EINTR:
+func connect(fd int, addr unix.Sockaddr) (success bool, err error) {
+	switch serr := unix.Connect(fd, addr); serr {
+	case unix.EALREADY, unix.EINPROGRESS, unix.EINTR:
 		// Connection could not be made immediately but asynchronously.
 		success = false
 		err = nil
-	case nil, syscall.EISCONN:
+	case nil, unix.EISCONN:
 		// The specified socket is already connected.
 		success = true
 		err = nil
-	case syscall.EINVAL:
+	case unix.EINVAL:
 		// On Solaris we can see EINVAL if the socket has
 		// already been accepted and closed by the server.
 		// Treat this as a successful connection--writes to
