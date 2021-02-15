@@ -11,9 +11,9 @@ import (
 const maxEpollEvents = 32
 
 // createSocket creates a socket with necessary options set.
-func createSocketZeroLinger(zeroLinger bool, ipv6 bool) (fd int, err error) {
+func createSocketZeroLinger(zeroLinger bool, domain int) (fd int, err error) {
 	// Create socket
-	fd, err = _createNonBlockingSocket(ipv6)
+	fd, err = _createNonBlockingSocket(domain)
 	if err == nil {
 		if zeroLinger {
 			err = _setZeroLinger(fd)
@@ -23,9 +23,9 @@ func createSocketZeroLinger(zeroLinger bool, ipv6 bool) (fd int, err error) {
 }
 
 // createNonBlockingSocket creates a non-blocking socket with necessary options all set.
-func _createNonBlockingSocket(ipv6 bool) (int, error) {
+func _createNonBlockingSocket(domain int) (int, error) {
 	// Create socket
-	fd, err := _createSocket(ipv6)
+	fd, err := _createSocket(domain)
 	if err != nil {
 		return 0, err
 	}
@@ -38,11 +38,7 @@ func _createNonBlockingSocket(ipv6 bool) (int, error) {
 }
 
 // createSocket creates a socket with CloseOnExec set
-func _createSocket(ipv6 bool) (int, error) {
-	domain := unix.AF_INET
-	if ipv6 {
-		domain = unix.AF_INET6
-	}
+func _createSocket(domain int) (int, error) {
 	fd, err := unix.Socket(domain, unix.SOCK_STREAM, 0)
 	unix.CloseOnExec(fd)
 	return fd, err

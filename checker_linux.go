@@ -145,9 +145,19 @@ func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLi
 	if err != nil {
 		return err
 	}
-	_, ipv6 := rAddr.(*syscall.SockaddrInet6)
+
+	var domain int
+	switch rAddr.(type) {
+	case *unix.SockaddrInet4:
+		domain = unix.AF_INET
+	case *unix.SockaddrInet6:
+		domain = unix.AF_INET6
+	default:
+		return errors.New("Unrecognized IP address type")
+	}
+
 	// Create socket with options set
-	fd, err := createSocketZeroLinger(zeroLinger, ipv6)
+	fd, err := createSocketZeroLinger(zeroLinger, domain)
 	if err != nil {
 		return err
 	}
