@@ -14,7 +14,9 @@ import (
 )
 
 const (
-	AddrDead = "127.0.0.1:1"
+	AddrDead      = "127.0.0.1:1"
+	AddrIPV6Dead  = "[::1]:9001"
+	AddrIPV6Alive = "[::1]:9002"
 )
 
 var timeoutAddrs = []string{
@@ -108,6 +110,43 @@ func TestCheckAddr(t *testing.T) {
 		t.Log("expected ErrTimeout, got ", err)
 		t.FailNow()
 	}
+}
+
+func TestCheckIPV6Addr(t *testing.T) {
+	t.Parallel()
+	var err error
+	// Create checker
+	c := NewChecker()
+
+	// Start checker
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go c.CheckingLoop(ctx)
+
+	<-c.WaitReady()
+
+	timeout := time.Second * 2
+
+	// Launch a server for test
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+	listener, _ := net.Listen("tcp6", AddrIPV6Alive)
+	ts := &httptest.Server{Listener: listener, Config: &http.Server{Handler: handler}}
+	ts.Start()
+
+	// Check dead server
+	err = c.CheckAddr(AddrIPV6Dead, timeout)
+	if runtime.GOOS == "linux" {
+		_, ok := err.(*ErrConnect)
+		assert(t, ok)
+	} else {
+		assert(t, err != nil)
+	}
+
+	// Check alive server
+	err = c.CheckAddr(AddrIPV6Alive, timeout)
+	assert(t, err == nil)
+
+	ts.Close()
 }
 
 func TestCheckAddrConcurrently(t *testing.T) {
