@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"errors"
 	"net"
 	"runtime"
 
@@ -8,16 +9,24 @@ import (
 )
 
 // parseSockAddr resolves given addr to unix.Sockaddr
-func parseSockAddr(addr string) (unix.Sockaddr, error) {
+func parseSockAddr(addr string) (unix.Sockaddr, int, error) {
 	tAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	var addr4 [4]byte
-	if tAddr.IP != nil {
-		copy(addr4[:], tAddr.IP.To4()) // copy last 4 bytes of slice to array
+
+	switch len(tAddr.IP) {
+	case net.IPv4len:
+		var addr4 [net.IPv4len]byte
+		copy(addr4[:], tAddr.IP.To4())
+		return &unix.SockaddrInet4{Port: tAddr.Port, Addr: addr4}, unix.AF_INET, nil
+	case net.IPv6len:
+		var addr16 [net.IPv6len]byte
+		copy(addr16[:], tAddr.IP.To16())
+		return &unix.SockaddrInet6{Port: tAddr.Port, Addr: addr16}, unix.AF_INET6, nil
+	default:
+		return nil, 0, errors.New("invalid addr")
 	}
-	return &unix.SockaddrInet4{Port: tAddr.Port, Addr: addr4}, nil
 }
 
 // connect calls the connect syscall with error handled.

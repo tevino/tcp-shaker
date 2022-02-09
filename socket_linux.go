@@ -11,9 +11,9 @@ import (
 const maxEpollEvents = 32
 
 // createSocket creates a socket with necessary options set.
-func createSocketZeroLinger(zeroLinger bool) (fd int, err error) {
+func createSocketZeroLinger(family int, zeroLinger bool) (fd int, err error) {
 	// Create socket
-	fd, err = _createNonBlockingSocket()
+	fd, err = _createNonBlockingSocket(family)
 	if err == nil {
 		if zeroLinger {
 			err = _setZeroLinger(fd)
@@ -23,9 +23,9 @@ func createSocketZeroLinger(zeroLinger bool) (fd int, err error) {
 }
 
 // createNonBlockingSocket creates a non-blocking socket with necessary options all set.
-func _createNonBlockingSocket() (int, error) {
+func _createNonBlockingSocket(family int) (int, error) {
 	// Create socket
-	fd, err := _createSocket()
+	fd, err := _createSocket(family)
 	if err != nil {
 		return 0, err
 	}
@@ -38,8 +38,8 @@ func _createNonBlockingSocket() (int, error) {
 }
 
 // createSocket creates a socket with CloseOnExec set
-func _createSocket() (int, error) {
-	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_STREAM, 0)
+func _createSocket(family int) (int, error) {
+	fd, err := unix.Socket(family, unix.SOCK_STREAM, 0)
 	unix.CloseOnExec(fd)
 	return fd, err
 }
