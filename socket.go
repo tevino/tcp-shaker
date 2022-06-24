@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"errors"
 	"net"
 	"runtime"
 
@@ -15,17 +14,23 @@ func parseSockAddr(addr string) (unix.Sockaddr, int, error) {
 		return nil, 0, err
 	}
 
-	switch len(tAddr.IP) {
-	case net.IPv4len:
+	if ip := tAddr.IP.To4(); ip != nil {
 		var addr4 [net.IPv4len]byte
-		copy(addr4[:], tAddr.IP.To4())
-		return &unix.SockaddrInet4{Port: tAddr.Port, Addr: addr4}, unix.AF_INET, nil
-	case net.IPv6len:
+		copy(addr4[:], ip)
+		sAddr := &unix.SockaddrInet4{Port: tAddr.Port, Addr: addr4}
+		return sAddr, unix.AF_INET, nil
+	}
+
+	if ip := tAddr.IP.To16(); ip != nil {
 		var addr16 [net.IPv6len]byte
-		copy(addr16[:], tAddr.IP.To16())
-		return &unix.SockaddrInet6{Port: tAddr.Port, Addr: addr16}, unix.AF_INET6, nil
-	default:
-		return nil, 0, errors.New("invalid addr")
+		copy(addr16[:], ip)
+		sAddr := &unix.SockaddrInet6{Port: tAddr.Port, Addr: addr16}
+		return sAddr, unix.AF_INET6, nil
+	}
+
+	return nil, 0, &net.AddrError{
+		Err:  "invalid IP address",
+		Addr: tAddr.IP.String(),
 	}
 }
 
