@@ -9,6 +9,11 @@ import (
 )
 
 func TestParseSockAddr(t *testing.T) {
+	t.Run("invalid", func(t *testing.T) {
+		_, _, err := parseSockAddr("127.0.0.1")
+		assert(t, err != nil)
+	})
+
 	t.Run("ipv4", func(t *testing.T) {
 		sAddr, family, err := parseSockAddr("127.0.0.1:8080")
 		assert(t, err == nil)
