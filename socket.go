@@ -29,7 +29,7 @@ func parseSockAddr(addr string) (unix.Sockaddr, int, error) {
 	}
 
 	return nil, 0, &net.AddrError{
-		Err:  "invalid IP address",
+		Err:  "unsupported address family",
 		Addr: tAddr.IP.String(),
 	}
 }
