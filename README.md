@@ -84,7 +84,7 @@ default:
 
 ## TODO
 
-- [ ] IPv6 support (Test environment needed, PRs are welcome)
+- [x] IPv6 support (Test environment needed, PRs are welcome)
 
 ## Special thanks to contributors
 
