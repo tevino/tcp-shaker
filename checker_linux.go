@@ -141,12 +141,12 @@ func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLi
 	deadline := time.Now().Add(timeout)
 
 	// Parse address
-	rAddr, err := parseSockAddr(addr)
+	rAddr, family, err := parseSockAddr(addr)
 	if err != nil {
 		return err
 	}
 	// Create socket with options set
-	fd, err := createSocketZeroLinger(zeroLinger)
+	fd, err := createSocketZeroLinger(family, zeroLinger)
 	if err != nil {
 		return err
 	}
