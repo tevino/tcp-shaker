@@ -90,5 +90,6 @@ default:
 
 - @lujjjh Added zero linger support for non-Linux platform
 - @jakubgs Fixed compatibility on Android
+- @kirk91 Added support for IPv6
 
 [tcp-handshake]: https://en.wikipedia.org/wiki/Handshaking#TCP_three-way_handshake
