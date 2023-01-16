@@ -132,3 +132,28 @@ func TestCheckAddrConcurrently(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestCheckAddrLatency(t *testing.T) {
+	c := NewChecker()
+
+	ctx, stopChecker := context.WithCancel(context.Background())
+	defer stopChecker()
+	go func() {
+		if err := c.CheckingLoop(ctx); err != nil {
+			fmt.Println("checking loop stopped due to fatal error: ", err)
+		}
+	}()
+
+	<-c.WaitReady()
+
+	timeout := time.Second * 1
+	latency, err := c.CheckAddrWithLatency("google.com:80", timeout)
+	switch err {
+	case ErrTimeout:
+		fmt.Println("Connect to Google timed out")
+	case nil:
+		fmt.Printf("Connect to Google succeeded with latency %v ms\n", latency.Milliseconds())
+	default:
+		fmt.Println("Error occurred while connecting: ", err)
+	}
+}

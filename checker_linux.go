@@ -165,6 +165,46 @@ func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLi
 	return c.waitConnectResult(fd, deadline.Sub(time.Now()))
 }
 
+// CheckAddrWithLatency is the supplement of CheckAddr which return the handshake time duration.
+// NOTE: the returned time duration only meaningful when return err is nil.
+func (c *Checker) CheckAddrWithLatency(addr string, timeout time.Duration) (time.Duration, error) {
+	return c.CheckAddrZeroLingerWithLatency(addr, timeout)
+}
+
+// CheckAddrZeroLingerWithLatency is CheckAddrWithLatency with a zeroLinger parameter.
+func (c *Checker) CheckAddrZeroLingerWithLatency(addr string, timeout time.Duration, zeroLinger bool) (time.Duration, error) {
+	// Set deadline
+	deadline := time.Now().Add(timeout)
+
+	// Parse address
+	rAddr, family, err := parseSockAddr(addr)
+	if err != nil {
+		return 0, err
+	}
+	// Create socket with options set
+	fd, err := createSocketZeroLinger(family, zeroLinger)
+	if err != nil {
+		return 0, err
+	}
+	// Socket should be closed anyway
+	defer unix.Close(fd)
+
+	// Connect start at
+	start := time.Now()
+
+	// Connect to the address
+	if success, cErr := connect(fd, rAddr); cErr != nil {
+		// If there was an error, return it.
+		return 0, &ErrConnect{cErr}
+	} else if success {
+		// If the connect was successful, we are done.
+		return time.Now().Sub(start), nil
+	}
+	// Otherwise wait for the result of connect.
+	err = c.waitConnectResult(fd, deadline.Sub(time.Now()))
+	return time.Now().Sub(start), err
+}
+
 func (c *Checker) waitConnectResult(fd int, timeout time.Duration) error {
 	// get a pipe of connect result
 	resultPipe := c.getPipe()
