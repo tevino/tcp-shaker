@@ -60,7 +60,7 @@ func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLi
 
 // CheckAddrWithLatency is the supplement of CheckAddr which return the handshake time duration.
 // NOTE: the returned time duration only meaningful when return err is nil.
-func (c *Checker) CheckAddrWithLatency(addr string, timeout time.Duration) (time.Duration, error) {
+func (c *Checker) CheckAddrWithLatency(addr string, sourceAddr string, timeout time.Duration) (time.Duration, error) {
 	return c.CheckAddrZeroLingerWithLatency(addr, timeout, c.zeroLinger)
 }
 

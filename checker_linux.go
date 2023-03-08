@@ -146,7 +146,7 @@ func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLi
 		return err
 	}
 	// Create socket with options set
-	fd, err := createSocketZeroLinger(family, zeroLinger)
+	fd, err := createSocketZeroLinger(family, "", zeroLinger)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func (c *Checker) CheckAddrWithLatency(addr string, timeout time.Duration) (time
 }
 
 // CheckAddrZeroLingerWithLatency is CheckAddrWithLatency with a zeroLinger parameter.
-func (c *Checker) CheckAddrZeroLingerWithLatency(addr string, timeout time.Duration, zeroLinger bool) (time.Duration, error) {
+func (c *Checker) CheckAddrZeroLingerWithLatency(addr string, sourceAddr string, timeout time.Duration, zeroLinger bool) (time.Duration, error) {
 	// Set deadline
 	deadline := time.Now().Add(timeout)
 
@@ -182,7 +182,7 @@ func (c *Checker) CheckAddrZeroLingerWithLatency(addr string, timeout time.Durat
 		return 0, err
 	}
 	// Create socket with options set
-	fd, err := createSocketZeroLinger(family, zeroLinger)
+	fd, err := createSocketZeroLinger(family, sourceAddr, zeroLinger)
 	if err != nil {
 		return 0, err
 	}

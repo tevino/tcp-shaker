@@ -147,7 +147,7 @@ func TestCheckAddrLatency(t *testing.T) {
 	<-c.WaitReady()
 
 	timeout := time.Second * 1
-	latency, err := c.CheckAddrWithLatency("google.com:80", timeout)
+	latency, err := c.CheckAddrWithLatency("google.com:80", "", timeout)
 	switch err {
 	case ErrTimeout:
 		fmt.Println("Connect to Google timed out")
