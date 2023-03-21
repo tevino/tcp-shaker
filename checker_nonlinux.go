@@ -65,7 +65,7 @@ func (c *Checker) CheckAddrWithLatency(addr string, sourceAddr string, timeout t
 }
 
 // CheckAddrZeroLingerWithLatency is CheckAddrWithLatency with a zeroLinger parameter.
-func (c *Checker) CheckAddrZeroLingerWithLatency(addr string, timeout time.Duration, zeroLinger bool) (time.Duration, error) {
+func (c *Checker) CheckAddrZeroLingerWithLatency(addr string, sourceAddr string, timeout time.Duration, zeroLinger bool) (time.Duration, error) {
 	// Connect started at
 	start := time.Now()
 	conn, err := net.DialTimeout("tcp", addr, timeout)

@@ -2,6 +2,7 @@ package tcp
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -46,7 +47,12 @@ func _createNonBlockingSocket(family int, sourceAddr string) (int, error) {
 }
 
 func _bindSocket(fd int, addr string) error {
-	return unix.Bind(fd, addr)
+	a := unix.SockaddrInet4{}
+	ip := net.ParseIP(addr)
+	if ip != nil {
+		a.Addr = [4]byte{ip[0], ip[1], ip[2], ip[3]}
+	}
+	return unix.Bind(fd, &a)
 }
 
 // createSocket creates a socket with CloseOnExec set
