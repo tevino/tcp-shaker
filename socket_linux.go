@@ -50,7 +50,7 @@ func _bindSocket(fd int, addr string) error {
 	a := unix.SockaddrInet4{}
 	ip := net.ParseIP(addr)
 	if ip != nil {
-		a.Addr = [4]byte{ip[0], ip[1], ip[2], ip[3]}
+		a.Addr = [4]byte{ip.To4()[0], ip.To4()[1], ip.To4()[2], ip.To4()[3]}
 	}
 	return unix.Bind(fd, &a)
 }
