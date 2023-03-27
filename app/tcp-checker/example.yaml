@@ -1,0 +1,10 @@
+# Example config file for daemon mode of tcp checker.
+# Use CLI arguments for options that are common between CLI/Daemon.
+
+run_address: :8785
+check_interval: 5 # (interval in seconds between runs of tcp-checker)
+tcp_addresses:
+  - google.com:80
+  - example.com:443
+  - smtp.gmail.com:465
+  - example.com:5454

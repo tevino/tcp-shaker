@@ -51,9 +51,10 @@ const (
 	CErrOther
 )
 
-// ConcurrentChecker wrapper of tcp.Checker with concurrent checking capacibilities.
+// ConcurrentChecker wrapper of tcp.Checker with concurrent checking capabilities.
 type ConcurrentChecker struct {
-	conf    *Config
+	addr    string
+	conf    *CLIConfig
 	counter *Counter
 	checker *tcp.Checker
 	queue   chan bool
@@ -62,9 +63,10 @@ type ConcurrentChecker struct {
 }
 
 // NewConcurrentChecker creates a checker.
-func NewConcurrentChecker(conf *Config) *ConcurrentChecker {
+func NewConcurrentChecker(cliArgs *CLIConfig, addr string) *ConcurrentChecker {
 	return &ConcurrentChecker{
-		conf:    conf,
+		addr:    addr,
+		conf:    cliArgs,
 		counter: NewCounter(CRequest, CSucceed, CErrConnect, CErrTimeout, CErrOther),
 		checker: tcp.NewChecker(),
 		queue:   make(chan bool),
@@ -83,7 +85,9 @@ func (cc *ConcurrentChecker) Launch(ctx context.Context) error {
 	var err error
 	go func() {
 		err := cc.checker.CheckingLoop(ctx)
-		log.Fatal("Error during checking loop: ", err)
+		if err != nil {
+			log.Println("Error during checking loop: ", err)
+		}
 	}()
 
 	for i := 0; i < cc.conf.Concurrency; i++ {
@@ -92,7 +96,7 @@ func (cc *ConcurrentChecker) Launch(ctx context.Context) error {
 	cc.wg.Add(cc.conf.Requests)
 
 	if cc.conf.Verbose {
-		fmt.Println("Waiting for checker to be ready")
+		log.Println("Waiting for checker to be ready")
 	}
 	<-cc.checker.WaitReady()
 
@@ -105,7 +109,7 @@ func (cc *ConcurrentChecker) Launch(ctx context.Context) error {
 }
 
 func (cc *ConcurrentChecker) doCheck() {
-	err := cc.checker.CheckAddr(cc.conf.Addr, cc.conf.Timeout)
+	err := cc.checker.CheckAddr(cc.addr, cc.conf.Timeout)
 	cc.counter.Inc(CRequest)
 	switch err {
 	case tcp.ErrTimeout:
