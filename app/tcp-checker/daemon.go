@@ -38,6 +38,14 @@ func parseConfigFile(path string) *DaemonConfig {
 		log.Fatalln("Error parsing config file", err)
 	}
 
+	if settings.RunAddress == "" {
+		settings.RunAddress = ":8785"
+	}
+
+	if settings.CheckInterval == 0 {
+		settings.CheckInterval = 5
+	}
+
 	// Validate addresses.
 	for _, addr := range settings.TCPAddresses {
 		if _, err := net.ResolveTCPAddr("tcp", addr); err != nil {
