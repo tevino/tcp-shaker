@@ -53,6 +53,9 @@ conn, err := net.DialTimeout("tcp", addr, timeout)
 conn.Close()
 ```
 
+The reason for a fake implementation is that there is currently no way to perform an equivalent operation on certain platforms, specifically macOS. A fake implementation is a degradation on those platforms and ensures a successful compilation.
+
+
 ## Usage
 
 ```go
