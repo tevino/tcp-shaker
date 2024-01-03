@@ -61,6 +61,8 @@ The reason for a fake implementation is that there is currently no way to perfor
 ```go
 import "github.com/tevino/tcp-shaker"
 
+// Initializing the checker
+// It is expected to be shared among goroutines, only one instance is necessary.
 c := NewChecker()
 
 ctx, stopChecker := context.WithCancel(context.Background())
@@ -72,6 +74,8 @@ go func() {
 }()
 
 <-c.WaitReady()
+
+// Checking google.com
 
 timeout := time.Second * 1
 err := c.CheckAddr("google.com:80", timeout)
