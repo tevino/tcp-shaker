@@ -10,7 +10,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Checker contains an epoll instance for TCP handshake checking
+// Checker contains an epoll instance for TCP handshake checking.
+// NOTE: Ideally only one instance of Checker should be created within a process.
 type Checker struct {
 	pipePool
 	resultPipes
