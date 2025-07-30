@@ -59,21 +59,15 @@ The reason for a fake implementation is that there is currently no way to perfor
 ## Usage
 
 ```go
-import "github.com/tevino/tcp-shaker"
+import (
+	tcpshaker "github.com/tevino/tcp-shaker"
+)
 
 // Initializing the checker
 // It is expected to be shared among goroutines, only one instance is necessary.
-c := NewChecker()
-
-ctx, stopChecker := context.WithCancel(context.Background())
-defer stopChecker()
-go func() {
-	if err := c.CheckingLoop(ctx); err != nil {
-		fmt.Println("checking loop stopped due to fatal error: ", err)
-	}
-}()
-
-<-c.WaitReady()
+// The DefaultChecker is a shared singleton, ready to use.
+// It automatically handles its own lifecycle in the background.
+c := tcpshaker.DefaultChecker()
 
 // Checking google.com
 
