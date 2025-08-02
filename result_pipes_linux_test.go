@@ -38,7 +38,7 @@ func BenchmarkResultPipesMUOK(b *testing.B) {
 	defer cancel()
 	c.resultPipes = newResultPipesMU()
 
-	addr, stop := _startTestServer()
+	addr, stop := StartTestServer()
 	defer stop()
 	_benchmarkChecker(b, c, addr)
 }
@@ -48,7 +48,7 @@ func BenchmarkResultPipesSyncMapOK(b *testing.B) {
 	defer cancel()
 	c.resultPipes = newResultPipesSyncMap()
 
-	addr, stop := _startTestServer()
+	addr, stop := StartTestServer()
 	defer stop()
 	_benchmarkChecker(b, c, addr)
 }

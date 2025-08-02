@@ -2,8 +2,6 @@ package tcp
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -58,12 +56,6 @@ func TestStopNStartChecker(t *testing.T) {
 	_testChecker(t, c)
 }
 
-func _startTestServer() (string, context.CancelFunc) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	addr := ts.Listener.Addr().String()
-	return addr, ts.Close
-}
-
 func _testChecker(t *testing.T, c *Checker) {
 	select {
 	case <-c.WaitReady():
@@ -77,7 +69,7 @@ func _testChecker(t *testing.T, c *Checker) {
 	assert(t, ok)
 
 	// Launch a server for test
-	addr, stop := _startTestServer()
+	addr, stop := StartTestServer()
 	defer stop()
 
 	// Check alive server

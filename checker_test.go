@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/http"
-	"net/http/httptest"
+
 	"os"
 	"runtime"
 	"sync"
@@ -97,11 +96,11 @@ func TestCheckAddr(t *testing.T) {
 		assert(t, err != nil)
 	}
 	// Launch a server for test
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	addr, stop := StartTestServer()
+	defer stop()
 	// Check alive server
-	err = c.CheckAddr(ts.Listener.Addr().String(), timeout)
+	err = c.CheckAddr(addr, timeout)
 	assert(t, err == nil)
-	ts.Close()
 	// Check non-routable address, thus timeout
 	err = c.CheckAddr(AddrTimeout, timeout)
 	if err != ErrTimeout {

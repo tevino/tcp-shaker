@@ -7,7 +7,7 @@ func BenchmarkPipePoolDummyOK(b *testing.B) {
 	defer cancel()
 	c.pipePool = newPipePoolDummy()
 
-	addr, stop := _startTestServer()
+	addr, stop := StartTestServer()
 	defer stop()
 	_benchmarkChecker(b, c, addr)
 }
@@ -17,7 +17,7 @@ func BenchmarkPipePoolSyncPoolOK(b *testing.B) {
 	defer cancel()
 	c.pipePool = newPipePoolSyncPool()
 
-	addr, stop := _startTestServer()
+	addr, stop := StartTestServer()
 	defer stop()
 	_benchmarkChecker(b, c, addr)
 }
