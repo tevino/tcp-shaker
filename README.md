@@ -69,13 +69,13 @@ import (
 checker := tcpshaker.DefaultChecker()
 
 
-// Checking google.com
-err := checker.CheckAddr("google.com:80", time.Second)
+// Checking example.com
+err := checker.CheckAddr("example.com:80", time.Second)
 switch err {
 case ErrTimeout:
-	fmt.Println("Connect to Google timed out after 1s")
+	fmt.Println("Connect timed out after 1s")
 case nil:
-	fmt.Println("Connect to Google succeeded")
+	fmt.Println("Connect succeeded")
 default:
 	fmt.Println("Error occurred while connecting: ", err)
 }
@@ -101,6 +101,26 @@ go func() {
 <-checker.WaitReady()
 
 // now the checker could be used as shown in the previous example.
+```
+
+### Command-line tool
+
+A `tcp-checker` command-line tool is also available. It can be built with:
+
+```bash
+go build -o tcp-checker ./app/tcp-checker
+```
+
+Or installed directly using `go install`:
+
+```bash
+go install github.com/tevino/tcp-shaker/app/tcp-checker
+```
+
+Example usage:
+```bash
+# Check example.com:443 with a 2 seconds timeout
+tcp-checker -a example.com:443 -t 2000
 ```
 
 ## TODO
