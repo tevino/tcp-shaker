@@ -58,35 +58,49 @@ The reason for a fake implementation is that there is currently no way to perfor
 
 ## Usage
 
+### Quick start (recommended)
+
 ```go
-import "github.com/tevino/tcp-shaker"
+import (
+	tcpshaker "github.com/tevino/tcp-shaker"
+)
 
-// Initializing the checker
-// It is expected to be shared among goroutines, only one instance is necessary.
-c := NewChecker()
+// Get the global singleton Checker instance
+checker := tcpshaker.DefaultChecker()
 
-ctx, stopChecker := context.WithCancel(context.Background())
-defer stopChecker()
-go func() {
-	if err := c.CheckingLoop(ctx); err != nil {
-		fmt.Println("checking loop stopped due to fatal error: ", err)
-	}
-}()
-
-<-c.WaitReady()
 
 // Checking google.com
-
-timeout := time.Second * 1
-err := c.CheckAddr("google.com:80", timeout)
+err := checker.CheckAddr("google.com:80", time.Second)
 switch err {
 case ErrTimeout:
-	fmt.Println("Connect to Google timed out")
+	fmt.Println("Connect to Google timed out after 1s")
 case nil:
 	fmt.Println("Connect to Google succeeded")
 default:
 	fmt.Println("Error occurred while connecting: ", err)
 }
+```
+
+### Manual initialization
+
+For fine-grained control of the lifecycle of the `Checker`.
+
+```
+// Initializing the checker
+// Only a single instance is needed and it's safe to use among goroutines.
+checker := NewChecker()
+
+ctx, stopChecker := context.WithCancel(context.Background())
+defer stopChecker()
+go func() {
+	if err := checker.CheckingLoop(ctx); err != nil {
+		fmt.Println("checking loop stopped due to fatal error: ", err)
+	}
+}()
+
+<-checker.WaitReady()
+
+// now the checker could be used as shown in the previous example.
 ```
 
 ## TODO
@@ -98,5 +112,6 @@ default:
 - @lujjjh Added zero linger support for non-Linux platform
 - @jakubgs Fixed compatibility on Android
 - @kirk91 Added support for IPv6
+- @eos175 Added a global singleton for `Checker`
 
 [tcp-handshake]: https://en.wikipedia.org/wiki/Handshaking#TCP_three-way_handshake
