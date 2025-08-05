@@ -1,3 +1,4 @@
+//go:build !linux
 // +build !linux
 
 package tcp
@@ -45,9 +46,9 @@ func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLi
 	if conn != nil {
 		if zeroLinger {
 			// Simply ignore the error since this is a fake implementation.
-			conn.(*net.TCPConn).SetLinger(0)
+			_ = conn.(*net.TCPConn).SetLinger(0)
 		}
-		conn.Close()
+		_ = conn.Close()
 	}
 	if opErr, ok := err.(*net.OpError); ok {
 		if opErr.Timeout() {

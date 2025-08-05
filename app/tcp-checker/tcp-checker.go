@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -12,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	tcp "github.com/tevino/tcp-shaker"
+	tcpshaker "github.com/tevino/tcp-shaker"
 )
 
 // Counter is an atomic counter for multiple metrics.
@@ -90,11 +89,11 @@ func setupSignal(exit chan bool) {
 	close(exit)
 }
 
-// ConcurrentChecker wrapper of tcp.Checker with concurrent checking capacibilities.
+// ConcurrentChecker is a wrapper of tcpshaker.Checker with concurrent checking capabilities.
 type ConcurrentChecker struct {
 	conf    *Config
 	counter *Counter
-	checker *tcp.Checker
+	checker *tcpshaker.Checker
 	queue   chan bool
 	closed  chan bool
 	wg      sync.WaitGroup
@@ -105,11 +104,10 @@ func NewConcurrentChecker(conf *Config) *ConcurrentChecker {
 	return &ConcurrentChecker{
 		conf:    conf,
 		counter: NewCounter(CRequest, CSucceed, CErrConnect, CErrTimeout, CErrOther),
-		checker: tcp.NewChecker(),
+		checker: tcpshaker.NewChecker(),
 		queue:   make(chan bool),
 		closed:  make(chan bool),
 	}
-
 }
 
 // Count returns the count of given ID.
@@ -122,7 +120,9 @@ func (cc *ConcurrentChecker) Launch(ctx context.Context) error {
 	var err error
 	go func() {
 		err := cc.checker.CheckingLoop(ctx)
-		log.Fatal("Error during checking loop: ", err)
+		if err != nil {
+			log.Fatal("Error during checking loop: ", err)
+		}
 	}()
 
 	for i := 0; i < cc.conf.Concurrency; i++ {
@@ -131,7 +131,7 @@ func (cc *ConcurrentChecker) Launch(ctx context.Context) error {
 	cc.wg.Add(cc.conf.Requests)
 
 	if cc.conf.Verbose {
-		fmt.Println("Waiting for checker to be ready")
+		log.Println("Waiting for checker to be ready")
 	}
 	<-cc.checker.WaitReady()
 
@@ -147,21 +147,20 @@ func (cc *ConcurrentChecker) doCheck() {
 	err := cc.checker.CheckAddr(cc.conf.Addr, cc.conf.Timeout)
 	cc.counter.Inc(CRequest)
 	switch err {
-	case tcp.ErrTimeout:
+	case tcpshaker.ErrTimeout:
 		cc.counter.Inc(CErrTimeout)
 	case nil:
 		cc.counter.Inc(CSucceed)
 	default:
 		if cc.conf.Verbose {
-			fmt.Println(err)
+			log.Println(err)
 		}
-		if _, ok := err.(*tcp.ErrConnect); ok {
+		if _, ok := err.(*tcpshaker.ErrConnect); ok {
 			cc.counter.Inc(CErrConnect)
 		} else {
 			cc.counter.Inc(CErrOther)
 		}
 	}
-
 }
 
 // Wait returns a chan which is closed when all checks are done.
@@ -221,7 +220,7 @@ Concurrency: %d`, conf.Addr, conf.Timeout, conf.Requests, conf.Concurrency)
 	case <-checker.Wait():
 	}
 
-	duration := time.Now().Sub(startedAt)
+	duration := time.Since(startedAt)
 	if conf.Verbose {
 		log.Println("Canceling checking loop")
 	}

@@ -26,7 +26,7 @@ func _setAddrTimeout() {
 	for _, addr := range timeoutAddrs {
 		conn, err := net.DialTimeout("tcp", addr, time.Millisecond*50)
 		if err == nil {
-			conn.Close()
+			_ = conn.Close()
 			continue
 		}
 		if os.IsTimeout(err) {
@@ -82,7 +82,9 @@ func TestCheckAddr(t *testing.T) {
 	// Start checker
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go c.CheckingLoop(ctx)
+	go func() {
+		_ = c.CheckingLoop(ctx)
+	}()
 
 	<-c.WaitReady()
 
@@ -114,13 +116,16 @@ func TestCheckAddrConcurrently(t *testing.T) {
 	c := NewChecker()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go c.CheckingLoop(ctx)
+	go func() {
+		_ = c.CheckingLoop(ctx)
+	}()
 
 	var wg sync.WaitGroup
+	var failed bool
 
 	check := func() {
 		if err := c.CheckAddr(AddrTimeout, time.Millisecond*50); err == nil {
-			t.Fatal("Concurrent testing failed")
+			failed = true
 		}
 		wg.Done()
 	}
@@ -130,4 +135,8 @@ func TestCheckAddrConcurrently(t *testing.T) {
 		go check()
 	}
 	wg.Wait()
+
+	if failed {
+		t.Fatal("Concurrent testing failed")
+	}
 }
