@@ -108,13 +108,13 @@ go func() {
 A `tcp-checker` command-line tool is also available. It can be built with:
 
 ```bash
-go build -o tcp-checker ./app/tcp-checker
+go build -o tcp-checker ./cmd/tcp-checker
 ```
 
 Or installed directly using `go install`:
 
 ```bash
-go install github.com/tevino/tcp-shaker/app/tcp-checker
+go install github.com/tevino/tcp-shaker/cmd/tcp-checker
 ```
 
 Example usage:
