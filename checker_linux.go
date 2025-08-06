@@ -2,11 +2,12 @@ package tcp
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
@@ -42,7 +43,7 @@ func NewCheckerZeroLinger(zeroLinger bool) *Checker {
 func (c *Checker) CheckingLoop(ctx context.Context) error {
 	pollerFd, err := c.createPoller()
 	if err != nil {
-		return errors.Wrap(err, "error creating poller")
+		return fmt.Errorf("error creating poller: %w", err)
 	}
 	defer c.closePoller()
 
@@ -100,7 +101,7 @@ func (c *Checker) pollingLoop(ctx context.Context, pollerFd int) error {
 			evts, err := pollEvents(pollerFd, pollerTimeout)
 			if err != nil {
 				// fatal error
-				return errors.Wrap(err, "error during polling loop")
+				return fmt.Errorf("error during polling loop: %w", err)
 			}
 
 			c.handlePollerEvents(evts)
