@@ -123,6 +123,9 @@ Example usage:
 tcp-checker -a example.com:443 -t 2000
 ```
 
+## Development & Contributing
+See [CONTRIBUTING.md](./CONTRIBUTING.md) to learn how to contribute to the project.
+
 ## TODO
 
 - [x] IPv6 support (Test environment needed, PRs are welcome)
