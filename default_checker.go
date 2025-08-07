@@ -3,6 +3,7 @@ package tcp
 import (
 	"context"
 	"log"
+	"os"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -23,7 +24,7 @@ func DefaultChecker() *Checker {
 		defaultChecker = NewChecker()
 
 		go func() {
-			ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 
 			// If the checking loop stops with an error, we log it.
