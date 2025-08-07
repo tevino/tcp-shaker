@@ -21,16 +21,17 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6.0.1
+        with:
+          version: latest
+
       - name: Build
         run: go build -v ./...
 
       - name: Test
         run: go test -v ./...
 
+
       - name: Benchmark
         run: go test -bench=.
-
-      - name: Lint
-        uses: golangci/golangci-lint-action@v6.0.1
-        with:
-          version: latest
