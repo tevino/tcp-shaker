@@ -1,6 +1,10 @@
 package tcp
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/tevino/tcp-shaker/internal"
+)
 
 func BenchmarkPipePoolDummyOK(b *testing.B) {
 	c, cancel := _newChecker(b)
@@ -15,7 +19,7 @@ func BenchmarkPipePoolDummyOK(b *testing.B) {
 func BenchmarkPipePoolSyncPoolOK(b *testing.B) {
 	c, cancel := _newChecker(b)
 	defer cancel()
-	c.pipePool = newPipePoolSyncPool()
+	c.pipePool = internal.NewPipePoolSyncPool()
 
 	addr, stop := StartTestServer()
 	defer stop()
@@ -33,7 +37,7 @@ func BenchmarkPipePoolDummyErr(b *testing.B) {
 func BenchmarkPipePoolSyncPoolErr(b *testing.B) {
 	c, cancel := _newChecker(b)
 	defer cancel()
-	c.pipePool = newPipePoolSyncPool()
+	c.pipePool = internal.NewPipePoolSyncPool()
 
 	_benchmarkChecker(b, c, AddrDead)
 }
@@ -49,7 +53,7 @@ func BenchmarkPipePoolDummyTimeout(b *testing.B) {
 func BenchmarkPipePoolSyncPoolTimeout(b *testing.B) {
 	c, cancel := _newChecker(b)
 	defer cancel()
-	c.pipePool = newPipePoolSyncPool()
+	c.pipePool = internal.NewPipePoolSyncPool()
 
 	_benchmarkChecker(b, c, AddrTimeout)
 }

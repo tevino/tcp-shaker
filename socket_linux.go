@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/tevino/tcp-shaker/internal"
 	"golang.org/x/sys/unix"
 )
 
@@ -80,7 +81,7 @@ func registerEvents(pollerFd int, fd int) error {
 	return nil
 }
 
-func pollEvents(pollerFd int, timeout time.Duration) ([]event, error) {
+func pollEvents(pollerFd int, timeout time.Duration) ([]internal.Event, error) {
 	var timeoutMS = int(timeout.Nanoseconds() / 1000000)
 	var epollEvents [maxEpollEvents]unix.EpollEvent
 	nEvents, err := unix.EpollWait(pollerFd, epollEvents[:], timeoutMS)
@@ -91,11 +92,11 @@ func pollEvents(pollerFd int, timeout time.Duration) ([]event, error) {
 		return nil, os.NewSyscallError("epoll_wait", err)
 	}
 
-	var events = make([]event, 0, nEvents)
+	var events = make([]internal.Event, 0, nEvents)
 
 	for i := 0; i < nEvents; i++ {
 		var fd = int(epollEvents[i].Fd)
-		var evt = event{Fd: fd, Err: nil}
+		var evt = internal.Event{Fd: fd, Err: nil}
 
 		errCode, err := unix.GetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_ERROR)
 		if err != nil {

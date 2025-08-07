@@ -5,6 +5,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/tevino/tcp-shaker/internal"
 )
 
 func _newChecker(b *testing.B) (*Checker, context.CancelFunc) {
@@ -46,7 +48,7 @@ func BenchmarkResultPipesMUOK(b *testing.B) {
 func BenchmarkResultPipesSyncMapOK(b *testing.B) {
 	c, cancel := _newChecker(b)
 	defer cancel()
-	c.resultPipes = newResultPipesSyncMap()
+	c.resultPipes = internal.NewResultPipesSyncMap()
 
 	addr, stop := StartTestServer()
 	defer stop()
@@ -63,7 +65,7 @@ func BenchmarkResultPipesMUErr(b *testing.B) {
 func BenchmarkResultPipesSyncMapErr(b *testing.B) {
 	c, cancel := _newChecker(b)
 	defer cancel()
-	c.resultPipes = newResultPipesSyncMap()
+	c.resultPipes = internal.NewResultPipesSyncMap()
 
 	_benchmarkChecker(b, c, AddrDead)
 }
@@ -79,7 +81,7 @@ func BenchmarkResultPipesMUTimeout(b *testing.B) {
 func BenchmarkResultPipesSyncMapTimeout(b *testing.B) {
 	c, cancel := _newChecker(b)
 	defer cancel()
-	c.resultPipes = newResultPipesSyncMap()
+	c.resultPipes = internal.NewResultPipesSyncMap()
 
 	_benchmarkChecker(b, c, AddrTimeout)
 }

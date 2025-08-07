@@ -1,4 +1,4 @@
-package tcp
+package internal
 
 import "sync"
 
@@ -6,11 +6,11 @@ type resultPipesSyncMap struct {
 	sync.Map
 }
 
-func newResultPipesSyncMap() *resultPipesSyncMap {
+func NewResultPipesSyncMap() *resultPipesSyncMap {
 	return &resultPipesSyncMap{}
 }
 
-func (r *resultPipesSyncMap) popResultPipe(fd int) (chan error, bool) {
+func (r *resultPipesSyncMap) PopResultPipe(fd int) (chan error, bool) {
 	p, exist := r.Load(fd)
 	if exist {
 		r.Delete(fd)
@@ -21,11 +21,11 @@ func (r *resultPipesSyncMap) popResultPipe(fd int) (chan error, bool) {
 	return nil, exist
 }
 
-func (r *resultPipesSyncMap) deregisterResultPipe(fd int) {
+func (r *resultPipesSyncMap) DeRegisterResultPipe(fd int) {
 	r.Delete(fd)
 }
 
-func (r *resultPipesSyncMap) registerResultPipe(fd int, pipe chan error) {
+func (r *resultPipesSyncMap) RegisterResultPipe(fd int, pipe chan error) {
 	// NOTE: the pipe should have been put back if c.fdResultPipes[fd] exists.
 	r.Store(fd, pipe)
 }

@@ -6,8 +6,8 @@ func newPipePoolDummy() *pipePoolDummy {
 	return &pipePoolDummy{}
 }
 
-func (*pipePoolDummy) getPipe() chan error {
+func (*pipePoolDummy) GetPipe() chan error {
 	return make(chan error, 1)
 }
 
-func (*pipePoolDummy) putBackPipe(pipe chan error) {}
+func (*pipePoolDummy) PutBackPipe(pipe chan error) {}
