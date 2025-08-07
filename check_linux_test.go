@@ -13,7 +13,9 @@ func TestCheckerReadyOK(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go c.CheckingLoop(ctx)
+	go func() {
+		_ = c.CheckingLoop(ctx)
+	}()
 	select {
 	case <-time.After(time.Second):
 		t.FailNow()

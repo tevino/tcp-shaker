@@ -127,7 +127,7 @@ func connect(fd int, addr unix.Sockaddr) (success bool, err error) {
 		// Treat this as a successful connection--writes to
 		// the socket will see EOF.  For details and a test
 		// case in C see https://golang.org/issue/6828.
-		if runtime.GOOS == "solaris" {
+		if runtime.GOOS == "solaris" { //nolint:staticcheck
 			success = true
 			err = nil
 		} else {

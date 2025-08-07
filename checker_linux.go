@@ -45,7 +45,9 @@ func (c *Checker) CheckingLoop(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error creating poller: %w", err)
 	}
-	defer c.closePoller()
+	defer func() {
+		_ = c.closePoller()
+	}()
 
 	c.setReady()
 	defer c.resetReady()
@@ -164,7 +166,8 @@ func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLi
 		return nil
 	}
 	// Otherwise wait for the result of connect.
-	return c.waitConnectResult(fd, deadline.Sub(time.Now()))
+
+	return c.waitConnectResult(fd, time.Until((deadline)))
 }
 
 func (c *Checker) waitConnectResult(fd int, timeout time.Duration) error {

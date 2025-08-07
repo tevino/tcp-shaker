@@ -7,53 +7,53 @@ import (
 )
 
 func BenchmarkPipePoolDummyOK(b *testing.B) {
-	c, cancel := _newChecker(b)
+	c, cancel := newChecker(b)
 	defer cancel()
 	c.pipePool = newPipePoolDummy()
 
 	addr, stop := StartTestServer()
 	defer stop()
-	_benchmarkChecker(b, c, addr)
+	benchmarkChecker(b, c, addr)
 }
 
 func BenchmarkPipePoolSyncPoolOK(b *testing.B) {
-	c, cancel := _newChecker(b)
+	c, cancel := newChecker(b)
 	defer cancel()
 	c.pipePool = internal.NewPipePoolSyncPool()
 
 	addr, stop := StartTestServer()
 	defer stop()
-	_benchmarkChecker(b, c, addr)
+	benchmarkChecker(b, c, addr)
 }
 
 func BenchmarkPipePoolDummyErr(b *testing.B) {
-	c, cancel := _newChecker(b)
+	c, cancel := newChecker(b)
 	defer cancel()
 	c.pipePool = newPipePoolDummy()
 
-	_benchmarkChecker(b, c, AddrDead)
+	benchmarkChecker(b, c, AddrDead)
 }
 
 func BenchmarkPipePoolSyncPoolErr(b *testing.B) {
-	c, cancel := _newChecker(b)
+	c, cancel := newChecker(b)
 	defer cancel()
 	c.pipePool = internal.NewPipePoolSyncPool()
 
-	_benchmarkChecker(b, c, AddrDead)
+	benchmarkChecker(b, c, AddrDead)
 }
 
 func BenchmarkPipePoolDummyTimeout(b *testing.B) {
-	c, cancel := _newChecker(b)
+	c, cancel := newChecker(b)
 	defer cancel()
 	c.pipePool = newPipePoolDummy()
 
-	_benchmarkChecker(b, c, AddrTimeout)
+	benchmarkChecker(b, c, AddrTimeout)
 }
 
 func BenchmarkPipePoolSyncPoolTimeout(b *testing.B) {
-	c, cancel := _newChecker(b)
+	c, cancel := newChecker(b)
 	defer cancel()
 	c.pipePool = internal.NewPipePoolSyncPool()
 
-	_benchmarkChecker(b, c, AddrTimeout)
+	benchmarkChecker(b, c, AddrTimeout)
 }
