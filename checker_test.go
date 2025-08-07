@@ -62,12 +62,12 @@ func ExampleChecker() {
 	<-c.WaitReady()
 
 	timeout := time.Second * 1
-	err := c.CheckAddr("google.com:80", timeout)
+	err := c.CheckAddr("example.com:80", timeout)
 	switch err {
 	case ErrTimeout:
-		fmt.Println("Connect to Google timed out")
+		fmt.Println("Connect timed out")
 	case nil:
-		fmt.Println("Connect to Google succeeded")
+		fmt.Println("Connect succeeded")
 	default:
 		fmt.Println("Error occurred while connecting: ", err)
 	}

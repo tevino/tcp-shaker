@@ -2,7 +2,6 @@ package tcp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
