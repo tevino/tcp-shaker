@@ -141,16 +141,25 @@ func (c *Checker) CheckAddr(addr string, timeout time.Duration) (err error) {
 
 // CheckAddrZeroLinger is like CheckAddr with an extra parameter indicating whether to enable zero linger.
 func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLinger bool) error {
-	// Set deadline
-	deadline := time.Now().Add(timeout)
+	opts := DefaultOptions().WithTimeout(timeout).WithZeroLinger(zeroLinger)
+	return c.CheckAddrWithOptions(addr, opts)
+}
 
-	// Parse address
-	rAddr, family, err := parseSockAddr(addr)
+// CheckAddrWithOptions performs a TCP check with given address and options.
+// A successful check will result in nil error.
+// ErrTimeout is returned if timeout.
+// Note: timeout includes domain resolving.
+func (c *Checker) CheckAddrWithOptions(addr string, opts Options) error {
+	// Set deadline
+	deadline := time.Now().Add(opts.Timeout)
+
+	// Parse address with specified network
+	rAddr, family, err := parseSockAddrWithNetwork(addr, opts.Network)
 	if err != nil {
 		return err
 	}
 	// Create socket with options set
-	fd, err := createSocketZeroLinger(family, zeroLinger)
+	fd, err := createSocketWithOptions(family, opts.ZeroLinger, opts.Mark)
 	if err != nil {
 		return err
 	}
