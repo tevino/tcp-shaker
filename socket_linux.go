@@ -14,13 +14,31 @@ const maxEpollEvents = 32
 
 // createSocket creates a socket with necessary options set.
 func createSocketZeroLinger(family int, zeroLinger bool) (fd int, err error) {
+	return createSocketWithOptions(family, zeroLinger, 0)
+}
+
+// createSocketWithOptions creates a socket with specified options
+func createSocketWithOptions(family int, zeroLinger bool, mark int) (fd int, err error) {
 	// Create socket
 	fd, err = _createNonBlockingSocket(family)
-	if err == nil {
-		if zeroLinger {
-			err = _setZeroLinger(fd)
+	if err != nil {
+		return
+	}
+
+	if zeroLinger {
+		if err = _setZeroLinger(fd); err != nil {
+			unix.Close(fd)
+			return
 		}
 	}
+
+	if mark != 0 {
+		if err = _setMark(fd, mark); err != nil {
+			unix.Close(fd)
+			return
+		}
+	}
+
 	return
 }
 
@@ -60,6 +78,11 @@ var zeroLinger = unix.Linger{Onoff: 1, Linger: 0}
 // setLinger sets SO_Linger with 0 timeout to given fd
 func _setZeroLinger(fd int) error {
 	return unix.SetsockoptLinger(fd, unix.SOL_SOCKET, unix.SO_LINGER, &zeroLinger)
+}
+
+// setMark sets SO_MARK for given fd (Linux only)
+func _setMark(fd int, mark int) error {
+	return unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_MARK, mark)
 }
 
 func createPoller() (fd int, err error) {
