@@ -10,7 +10,12 @@ import (
 
 // parseSockAddr resolves given addr to unix.Sockaddr
 func parseSockAddr(addr string) (sAddr unix.Sockaddr, family int, err error) {
-	tAddr, err := net.ResolveTCPAddr("tcp", addr)
+	return parseSockAddrWithNetwork(addr, "tcp")
+}
+
+// parseSockAddrWithNetwork resolves given addr to unix.Sockaddr with specified network
+func parseSockAddrWithNetwork(addr, network string) (sAddr unix.Sockaddr, family int, err error) {
+	tAddr, err := net.ResolveTCPAddr(network, addr)
 	if err != nil {
 		return
 	}
