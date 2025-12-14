@@ -42,9 +42,17 @@ func (c *Checker) CheckAddr(addr string, timeout time.Duration) error {
 
 // CheckAddrZeroLinger is CheckerAddr with a zeroLinger parameter.
 func (c *Checker) CheckAddrZeroLinger(addr string, timeout time.Duration, zeroLinger bool) error {
-	conn, err := net.DialTimeout("tcp", addr, timeout)
+	opts := DefaultOptions().WithTimeout(timeout).WithZeroLinger(zeroLinger)
+	return c.CheckAddrWithOptions(addr, opts)
+}
+
+// CheckAddrWithOptions performs a TCP check with given address and options.
+// NOTE: zeroLinger is ignored on non-POSIX operating systems because
+// net.TCPConn.SetLinger is only implemented in src/net/sockopt_posix.go.
+func (c *Checker) CheckAddrWithOptions(addr string, opts Options) error {
+	conn, err := net.DialTimeout(opts.Network, addr, opts.Timeout)
 	if conn != nil {
-		if zeroLinger {
+		if opts.ZeroLinger {
 			// Simply ignore the error since this is a fake implementation.
 			_ = conn.(*net.TCPConn).SetLinger(0)
 		}
