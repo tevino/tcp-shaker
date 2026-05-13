@@ -8,9 +8,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// parseSockAddr resolves given addr to unix.Sockaddr
-func parseSockAddr(addr string) (sAddr unix.Sockaddr, family int, err error) {
-	tAddr, err := net.ResolveTCPAddr("tcp", addr)
+// parseSockAddr resolves given addr to unix.Sockaddr with specified network.
+func parseSockAddr(network, addr string) (sAddr unix.Sockaddr, family int, err error) {
+	tAddr, err := net.ResolveTCPAddr(network, addr)
 	if err != nil {
 		return
 	}

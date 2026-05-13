@@ -12,12 +12,12 @@ import (
 
 func TestParseSockAddr(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
-		_, _, err := parseSockAddr("127.0.0.1")
+		_, _, err := parseSockAddr("tcp", "127.0.0.1")
 		assert(t, err != nil)
 	})
 
 	t.Run("ipv4", func(t *testing.T) {
-		sAddr, family, err := parseSockAddr("127.0.0.1:8080")
+		sAddr, family, err := parseSockAddr("tcp", "127.0.0.1:8080")
 		assert(t, err == nil)
 		assert(t, unix.AF_INET == family)
 		sAddr4, ok := sAddr.(*unix.SockaddrInet4)
@@ -31,7 +31,7 @@ func TestParseSockAddr(t *testing.T) {
 	})
 
 	t.Run("ipv6", func(t *testing.T) {
-		sAddr, family, err := parseSockAddr("[fdbd:dc03:ff:1:1:25:25:225]:8080")
+		sAddr, family, err := parseSockAddr("tcp", "[fdbd:dc03:ff:1:1:25:25:225]:8080")
 		assert(t, err == nil)
 		assert(t, unix.AF_INET6 == family)
 		sAddr6, ok := sAddr.(*unix.SockaddrInet6)

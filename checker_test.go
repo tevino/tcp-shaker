@@ -3,6 +3,7 @@ package tcp
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 
 	"os"
@@ -139,4 +140,75 @@ func TestCheckAddrConcurrently(t *testing.T) {
 	if failed {
 		t.Fatal("Concurrent testing failed")
 	}
+}
+
+func TestCheckerWithOptions(t *testing.T) {
+	testWithChecker(t, func(t *testing.T, checker *Checker, testAddr string) {
+		// Test basic functionality with default options
+		opts := DefaultOptions().WithTimeout(2 * time.Second)
+		err := checker.CheckAddrWithOptions(testAddr, opts)
+		if err != nil {
+			t.Errorf("Connection to test server failed: %v", err)
+		}
+
+		// Test IPv4 specific
+		opts4 := DefaultOptions().WithTimeout(2 * time.Second).WithNetwork("tcp4")
+		err = checker.CheckAddrWithOptions(testAddr, opts4)
+		if err != nil {
+			t.Errorf("IPv4 connection to test server failed: %v", err)
+		}
+	})
+}
+
+func TestIPv6Support(t *testing.T) {
+	checker, cancel := setupTestChecker(t)
+	defer cancel()
+
+	// Try to start IPv6 server
+	testAddr6, stopServer6, err := StartTestServerIPv6()
+	if err != nil {
+		t.Skipf("Skipping IPv6 test: %v", err)
+		return
+	}
+	defer stopServer6()
+	log.Printf("using test addr: %s", testAddr6)
+
+	// Test IPv6 connection with tcp6 network
+	opts6 := DefaultOptions().WithTimeout(2 * time.Second).WithNetwork("tcp6")
+	err = checker.CheckAddrWithOptions(testAddr6, opts6)
+	if err != nil {
+		t.Errorf("IPv6 connection to test server failed: %v", err)
+	}
+
+	// Test IPv6 connection with tcp network (should also work)
+	optsGeneral := DefaultOptions().WithTimeout(2 * time.Second).WithNetwork("tcp")
+	err = checker.CheckAddrWithOptions(testAddr6, optsGeneral)
+	if err != nil {
+		t.Errorf("General TCP connection to IPv6 test server failed: %v", err)
+	}
+
+	// Test that tcp4 fails on IPv6 address (should fail)
+	opts4 := DefaultOptions().WithTimeout(1 * time.Second).WithNetwork("tcp4")
+	err = checker.CheckAddrWithOptions(testAddr6, opts4)
+	if err == nil {
+		t.Error("Expected tcp4 connection to IPv6 address to fail, but it succeeded")
+	} else {
+		t.Logf("tcp4 connection to IPv6 address failed as expected: %v", err)
+	}
+}
+
+func TestBackwardCompatibility(t *testing.T) {
+	testWithChecker(t, func(t *testing.T, checker *Checker, testAddr string) {
+		// Old API should still work
+		err := checker.CheckAddr(testAddr, 2*time.Second)
+		if err != nil {
+			t.Errorf("Old API connection to test server failed: %v", err)
+		}
+
+		// CheckAddrZeroLinger should use new implementation internally
+		err = checker.CheckAddrZeroLinger(testAddr, 2*time.Second, true)
+		if err != nil {
+			t.Errorf("CheckAddrZeroLinger connection to test server failed: %v", err)
+		}
+	})
 }

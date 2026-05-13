@@ -12,15 +12,21 @@ import (
 
 const maxEpollEvents = 32
 
-// createSocket creates a socket with necessary options set.
+// createSocketZeroLinger creates a socket with specified options
 func createSocketZeroLinger(family int, zeroLinger bool) (fd int, err error) {
 	// Create socket
 	fd, err = _createNonBlockingSocket(family)
-	if err == nil {
-		if zeroLinger {
-			err = _setZeroLinger(fd)
+	if err != nil {
+		return
+	}
+
+	if zeroLinger {
+		if err = _setZeroLinger(fd); err != nil {
+			_ = unix.Close(fd)
+			return
 		}
 	}
+
 	return
 }
 

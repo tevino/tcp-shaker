@@ -136,5 +136,6 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) to learn how to contribute to the proje
 - @jakubgs Fixed compatibility on Android
 - @kirk91 Added support for IPv6
 - @eos175 Added a global singleton for `Checker`
+- @Lan-ce-lot Added IPv4/IPv6 network selection
 
 [tcp-handshake]: https://en.wikipedia.org/wiki/Handshaking#TCP_three-way_handshake
